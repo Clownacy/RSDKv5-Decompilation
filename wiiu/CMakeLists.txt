@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.24.1)
 
 option(RSDKv5_WIIU_SKIP_PKGCONFIG "Wii U pkg-config doesn't work right now on Windows, so use this to skip it until it's fixed." OFF)
+option(RSDKv5_WIIU_EXPERIMENTAL_SDL2 "Use GaryOderNichts' custom updated SDL2 Wii U port." OFF)
 option(RSDKv5_AUTOBUILD "Disable Plus DLC in Sonic Mania." OFF)
 
 project(RSDKv5 LANGUAGES C CXX)
@@ -52,17 +53,26 @@ target_compile_definitions(RSDKv5 PUBLIC # Public because the main function only
 	RETRO_REVISION=3
 )
 
+if(RSDKv5_WIIU_EXPERIMENTAL_SDL2)
+	add_subdirectory("../dependencies/wiiu/SDL" EXCLUDE_FROM_ALL "SDL")
+	target_link_libraries(RSDKv5 PUBLIC SDL2::SDL2-static SDL2::SDL2main) # Public because SDL2 may use a define to redirect the main function.
+endif()
+
 if(RSDKv5_WIIU_SKIP_PKGCONFIG)
-	target_compile_options(RSDKv5 PRIVATE "-I${DEVKITPRO}/portlibs/wiiu/include/SDL2")
-	target_link_libraries(RSDKv5 PRIVATE "-L${DEVKITPRO}/portlibs/wiiu/lib -lSDL2 -lwut -lm -lm -Wl,--no-undefined -lSDL2 -lwut -lm")
+	if(NOT RSDKv5_WIIU_EXPERIMENTAL_SDL2)
+		target_compile_options(RSDKv5 PRIVATE "-I${DEVKITPRO}/portlibs/wiiu/include/SDL2")
+		target_link_libraries(RSDKv5 PRIVATE "-L${DEVKITPRO}/portlibs/wiiu/lib -lSDL2 -lwut -lm -lm -Wl,--no-undefined -lSDL2 -lwut -lm")
+	endif()
 
 	target_compile_options(RSDKv5 PRIVATE "-I${DEVKITPRO}/portlibs/ppc/include")
 	target_link_libraries(RSDKv5 PRIVATE "-L${DEVKITPRO}/portlibs/ppc/lib -ltheora -logg")
 else()
 	find_package(PkgConfig REQUIRED)
 
-	pkg_check_modules(sdl2 REQUIRED IMPORTED_TARGET sdl2)
-	target_link_libraries(RSDKv5 PUBLIC PkgConfig::sdl2) # Public because SDL2 may use a define to redirect the main function.
+	if (NOT RSDKv5_WIIU_EXPERIMENTAL_SDL2)
+		pkg_check_modules(sdl2 REQUIRED IMPORTED_TARGET sdl2)
+		target_link_libraries(RSDKv5 PUBLIC PkgConfig::sdl2) # Public because SDL2 may use a define to redirect the main function.
+	endif()
 
 	pkg_check_modules(theora REQUIRED IMPORTED_TARGET theora)
 	target_link_libraries(RSDKv5 PRIVATE PkgConfig::theora)
