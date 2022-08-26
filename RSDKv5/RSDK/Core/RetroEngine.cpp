@@ -6,7 +6,6 @@
 
 #ifdef __WIIU__
 #include <unistd.h>
-#include <whb/proc.h>
 #include <whb/sdcard.h>
 #endif
 
@@ -55,12 +54,7 @@ int32 RSDK::RunRetroEngine(int32 argc, char *argv[])
     if (!WHBMountSdCard())
         return EXIT_FAILURE;
 
-    const char *sd_path = WHBGetSdCardMountPath();
-
-    if (sd_path == NULL)
-        return EXIT_FAILURE;
-
-    chdir(sd_path);
+    chdir(WHBGetSdCardMountPath());
     chdir("RSDK/v5");
 #endif
 
