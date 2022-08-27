@@ -90,7 +90,9 @@ else()
 	target_link_libraries(RSDKv5 PRIVATE ${theoradec_STATIC_LDFLAGS})
 endif()
 
-target_link_libraries(RSDKv5 PRIVATE ${CMAKE_DL_LIBS})
+if(NOT WIIU)
+	target_link_libraries(RSDKv5 PRIVATE ${CMAKE_DL_LIBS})
+endif()
 
 if(RSDKv5_AUTOBUILD)
 	target_compile_definitions(RSDKv5 PRIVATE
