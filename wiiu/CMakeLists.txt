@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.24.1)
+cmake_minimum_required(VERSION 3.18.4)
 
 option(RSDKv5_WIIU_SKIP_PKGCONFIG "Wii U pkg-config doesn't work right now on Windows, so use this to skip it until it's fixed." OFF)
 option(RSDKv5_WIIU_EXPERIMENTAL_SDL2 "Use GaryOderNichts' custom updated SDL2 Wii U port." OFF)
@@ -53,6 +53,10 @@ target_compile_definitions(RSDKv5 PUBLIC # Public because the main function only
 	RETRO_REVISION=3
 )
 
+target_link_options(RSDKv5 PUBLIC
+	"-static"
+)
+
 if(RSDKv5_WIIU_EXPERIMENTAL_SDL2)
 	add_subdirectory("../dependencies/wiiu/SDL" EXCLUDE_FROM_ALL "SDL")
 	target_link_libraries(RSDKv5 PUBLIC SDL2::SDL2-static SDL2::SDL2main) # Public because SDL2 may use a define to redirect the main function.
@@ -69,13 +73,21 @@ if(RSDKv5_WIIU_SKIP_PKGCONFIG)
 else()
 	find_package(PkgConfig REQUIRED)
 
-	if (NOT RSDKv5_WIIU_EXPERIMENTAL_SDL2)
+	if(NOT RSDKv5_WIIU_EXPERIMENTAL_SDL2)
+		if(MINGW)
+			# SDL2main and libmingw32 have a circular dependency issue
+			# that breaks MinGW right now, so fix it by doing this.
+			target_link_libraries(RSDKv5 PUBLIC mingw32)
+		endif()
+
 		pkg_check_modules(sdl2 REQUIRED IMPORTED_TARGET sdl2)
-		target_link_libraries(RSDKv5 PUBLIC PkgConfig::sdl2) # Public because SDL2 may use a define to redirect the main function.
+		target_compile_options(RSDKv5 PUBLIC ${sdl2_STATIC_CFLAGS}) # Public because SDL2 may use a define to redirect the main function.
+		target_link_libraries(RSDKv5 PRIVATE ${sdl2_STATIC_LDFLAGS})
 	endif()
 
-	pkg_check_modules(theora REQUIRED IMPORTED_TARGET theora)
-	target_link_libraries(RSDKv5 PRIVATE PkgConfig::theora)
+	pkg_check_modules(theoradec REQUIRED IMPORTED_TARGET theoradec)
+	target_compile_options(RSDKv5 PRIVATE ${theoradec_STATIC_CFLAGS})
+	target_link_libraries(RSDKv5 PRIVATE ${theoradec_STATIC_LDFLAGS})
 endif()
 
 if(RSDKv5_AUTOBUILD)
