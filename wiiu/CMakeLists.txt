@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.18.4)
 option(RSDKv5_WIIU_SKIP_PKGCONFIG "Wii U pkg-config doesn't work right now on Windows, so use this to skip it until it's fixed." OFF)
 option(RSDKv5_WIIU_EXPERIMENTAL_SDL2 "Use GaryOderNichts' custom updated SDL2 Wii U port." OFF)
 option(RSDKv5_AUTOBUILD "Disable Plus DLC in Sonic Mania." OFF)
+option(RSDKv5_STATIC "Static-link the dependencies." OFF)
 
 project(RSDKv5 LANGUAGES C CXX)
 
@@ -53,9 +54,11 @@ target_compile_definitions(RSDKv5 PUBLIC # Public because the main function only
 	RETRO_REVISION=3
 )
 
-target_link_options(RSDKv5 PUBLIC
-	"-static"
-)
+if(RSDKv5_STATIC)
+	target_link_options(RSDKv5 PUBLIC
+		"-static"
+	)
+endif()
 
 if(RSDKv5_WIIU_EXPERIMENTAL_SDL2)
 	add_subdirectory("../dependencies/wiiu/SDL" EXCLUDE_FROM_ALL "SDL")
@@ -81,13 +84,25 @@ else()
 		endif()
 
 		pkg_check_modules(sdl2 REQUIRED IMPORTED_TARGET sdl2)
-		target_compile_options(RSDKv5 PUBLIC ${sdl2_STATIC_CFLAGS}) # Public because SDL2 may use a define to redirect the main function.
-		target_link_libraries(RSDKv5 PRIVATE ${sdl2_STATIC_LDFLAGS})
+
+		if(RSDKv5_STATIC)
+			target_compile_options(RSDKv5 PUBLIC ${sdl2_STATIC_CFLAGS}) # Public because SDL2 may use a define to redirect the main function.
+			target_link_libraries(RSDKv5 PRIVATE ${sdl2_STATIC_LDFLAGS})
+		else()
+			target_compile_options(RSDKv5 PUBLIC ${sdl2_CFLAGS}) # Public because SDL2 may use a define to redirect the main function.
+			target_link_libraries(RSDKv5 PRIVATE ${sdl2_LDFLAGS})
+		endif()
 	endif()
 
 	pkg_check_modules(theoradec REQUIRED IMPORTED_TARGET theoradec)
-	target_compile_options(RSDKv5 PRIVATE ${theoradec_STATIC_CFLAGS})
-	target_link_libraries(RSDKv5 PRIVATE ${theoradec_STATIC_LDFLAGS})
+
+	if(RSDKv5_STATIC)
+		target_compile_options(RSDKv5 PRIVATE ${theoradec_STATIC_CFLAGS})
+		target_link_libraries(RSDKv5 PRIVATE ${theoradec_STATIC_LDFLAGS})
+	else()
+		target_compile_options(RSDKv5 PRIVATE ${theoradec_CFLAGS})
+		target_link_libraries(RSDKv5 PRIVATE ${theoradec_LDFLAGS})
+	endif()
 endif()
 
 if(NOT WIIU)
