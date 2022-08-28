@@ -320,6 +320,9 @@ void RSDK::LoadSettingsINI()
         customSettings.xyButtonFlip              = customSettings.confirmButtonFlip;
         customSettings.enableControllerDebugging = iniparser_getboolean(ini, "Game:enableControllerDebugging", false);
         customSettings.disableFocusPause         = iniparser_getboolean(ini, "Game:disableFocusPause", false);
+#if RETRO_USERCORE_DUMMY
+        customSettings.dlcEnabled                = iniparser_getboolean(ini, "Game:dlcEnabled", false);
+#endif
 
 #if RETRO_REV0U
         engine.gameReleaseID = iniparser_getint(ini, "Game:gameType", 1);
@@ -504,6 +507,9 @@ void RSDK::LoadSettingsINI()
         customSettings.xyButtonFlip              = false;
         customSettings.enableControllerDebugging = false;
         customSettings.disableFocusPause         = false;
+#if RETRO_USERCORE_DUMMY
+        customSettings.dlcEnabled                = false;
+#endif
 
 #if RETRO_REV0U
         engine.gameReleaseID = 0;
@@ -546,6 +552,12 @@ void RSDK::LoadSettingsINI()
         SaveSettingsINI(true);
         engine.devMenu = LoadDataPack("Data.rsdk", 0, useBuffer);
     }
+
+#if !RETRO_USE_ORIGINAL_CODE
+#if RETRO_USERCORE_DUMMY
+    if (customSettings.dlcEnabled)
+        for (int32 v = 0; v < SKU::userCore->valueCount; ++v) SKU::userCore->values[v] = true;
+#endif
 }
 
 void RSDK::SaveSettingsINI(bool32 writeToFile)
@@ -613,6 +625,13 @@ void RSDK::SaveSettingsINI(bool32 writeToFile)
         WriteText(file, "language=%d\n", SKU::curSKU.language);
 #else
         WriteText(file, "language=%d\n", gameVerInfo.language);
+#endif
+
+#if !RETRO_USE_ORIGINAL_CODE
+#if RETRO_USERCORE_DUMMY
+        WriteText(file, "; Determines if the Sonic Mania Plus DLC is enabled\n");
+        WriteText(file, "dlcEnabled=%s\n", (customSettings.dlcEnabled ? "y" : "n"));
+#endif
 #endif
 
         // ================
@@ -720,7 +739,6 @@ void RSDK::SaveSettingsINI(bool32 writeToFile)
         fClose(file);
     }
 
-#if !RETRO_USE_ORIGINAL_CODE
     if (gamePadCount && gamePadMappings)
         delete[] gamePadMappings;
     gamePadMappings = NULL;

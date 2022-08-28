@@ -8,11 +8,6 @@ struct DummyCore : UserCore {
         // are sonic mania plus features enabled?
         values[0]  = false;
         valueCount = 1;
-
-#ifndef RSDK_AUTOBUILD
-        // disable plus on autobuilds
-        for (int32 v = 0; v < valueCount; ++v) values[v] = true;
-#endif
     }
 
     void StageLoad();

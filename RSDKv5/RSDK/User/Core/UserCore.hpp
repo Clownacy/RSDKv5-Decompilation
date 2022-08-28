@@ -4,6 +4,23 @@
 namespace RSDK
 {
 
+#if !RETRO_USE_ORIGINAL_CODE
+struct CustomSettings {
+    int8 region;
+    bool32 confirmButtonFlip;
+    bool32 xyButtonFlip;
+    bool32 enableControllerDebugging;
+    bool32 disableFocusPause;
+#if RETRO_USERCORE_DUMMY
+    bool32 dlcEnabled;
+#endif
+    int32 maxPixWidth;
+    char username[0x80];
+};
+
+extern CustomSettings customSettings;
+#endif
+
 namespace SKU
 {
 
@@ -170,20 +187,6 @@ inline void ShowLimitedVideoOptions(int32 id) { userCore->ShowLimitedVideoOption
 #endif
 
 } // namespace SKU
-
-#if !RETRO_USE_ORIGINAL_CODE
-struct CustomSettings {
-    int8 region;
-    bool32 confirmButtonFlip;
-    bool32 xyButtonFlip;
-    bool32 enableControllerDebugging;
-    bool32 disableFocusPause;
-    int32 maxPixWidth;
-    char username[0x80];
-};
-
-extern CustomSettings customSettings;
-#endif
 
 void LoadSettingsINI();
 void SaveSettingsINI(bool32 writeToFile);

@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.18.4)
 
 option(RSDKv5_WIIU_SKIP_PKGCONFIG "Wii U pkg-config doesn't work right now on Windows, so use this to skip it until it's fixed." OFF)
 option(RSDKv5_WIIU_EXPERIMENTAL_SDL2 "Use GaryOderNichts' custom updated SDL2 Wii U port." OFF)
-option(RSDKv5_AUTOBUILD "Disable Plus DLC in Sonic Mania." OFF)
 option(RSDKv5_STATIC "Static-link the dependencies." OFF)
 
 project(RSDKv5 LANGUAGES C CXX)
@@ -107,10 +106,4 @@ endif()
 
 if(NOT WIIU)
 	target_link_libraries(RSDKv5 PRIVATE ${CMAKE_DL_LIBS})
-endif()
-
-if(RSDKv5_AUTOBUILD)
-	target_compile_definitions(RSDKv5 PRIVATE
-		RSDK_AUTOBUILD
-	)
 endif()

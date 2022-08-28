@@ -29,9 +29,9 @@ jobs:
           install: pkg-config make git mingw-w64-i686-gcc mingw-w64-i686-libogg mingw-w64-i686-libtheora
       - name: Build RSDKv5 + U
         run: |
-          make -j8 RSDK_ONLY=1 AUTOBUILD=1
+          make -j8 RSDK_ONLY=1
           make -j8 clean-rsdk
-          make -j8 RSDK_ONLY=1 RSDK_REVISION=3 AUTOBUILD=1
+          make -j8 RSDK_ONLY=1 RSDK_REVISION=3
       - name: Move artifacts
         run: |
           mkdir artifacts
@@ -59,9 +59,9 @@ jobs:
           install: pkg-config make git mingw-w64-x86_64-gcc mingw-w64-x86_64-SDL2 mingw-w64-x86_64-libogg mingw-w64-x86_64-libtheora
       - name: Build RSDKv5 + U
         run: |
-          make -j8 RSDK_ONLY=1 AUTOBUILD=1
+          make -j8 RSDK_ONLY=1
           make -j8 clean-rsdk
-          make -j8 RSDK_ONLY=1 RSDK_REVISION=3 AUTOBUILD=1
+          make -j8 RSDK_ONLY=1 RSDK_REVISION=3
       - name: Move artifacts
         run: |
           mkdir artifacts
@@ -84,14 +84,14 @@ jobs:
           sudo apt-get install libogg-dev libsdl2-dev libtheora-dev libglew-dev libglfw3-dev
       - name: Build RSDKv5 + U GL3
         run: |
-          make -j8 RSDK_ONLY=1 AUTOBUILD=1
+          make -j8 RSDK_ONLY=1
           make -j8 clean-rsdk
-          make -j8 RSDK_ONLY=1 RSDK_REVISION=3 AUTOBUILD=1
+          make -j8 RSDK_ONLY=1 RSDK_REVISION=3
       - name: Build RSDKv5 + U SDL2
         run: |
-          make -j8 RSDK_ONLY=1 SUBSYSTEM=SDL2 AUTOBUILD=1
+          make -j8 RSDK_ONLY=1 SUBSYSTEM=SDL2
           make -j8 clean-rsdk
-          make -j8 RSDK_ONLY=1 SUBSYSTEM=SDL2 RSDK_REVISION=3 AUTOBUILD=1
+          make -j8 RSDK_ONLY=1 SUBSYSTEM=SDL2 RSDK_REVISION=3
       - name: Upload artifacts
         uses: actions/upload-artifact@v1.0.0
         with:

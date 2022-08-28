@@ -44,10 +44,6 @@ endif
 
 DEFINES      ?=
 
-ifneq ($(AUTOBUILD),)
-	DEFINES += -DRSDK_AUTOBUILD
-endif
-
 
 # =============================================================================
 # Detect default platform if not explicitly specified
