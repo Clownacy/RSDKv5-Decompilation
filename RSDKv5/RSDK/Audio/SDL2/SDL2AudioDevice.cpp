@@ -36,12 +36,7 @@ void AudioDevice::Release()
 {
     LockAudioDevice();
 
-    if (vorbisInfo) {
-        vorbis_deinit(vorbisInfo);
-        if (!vorbisInfo->alloc.alloc_buffer)
-            free(vorbisInfo);
-    }
-    vorbisInfo = NULL;
+    UnloadStream();
 
     UnlockAudioDevice();
 

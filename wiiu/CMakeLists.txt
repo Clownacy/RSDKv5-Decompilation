@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.18.4)
 option(RSDKv5_WIIU_SKIP_PKGCONFIG "Wii U pkg-config doesn't work right now on Windows, so use this to skip it until it's fixed." OFF)
 option(RSDKv5_WIIU_EXPERIMENTAL_SDL2 "Use GaryOderNichts' custom updated SDL2 Wii U port." OFF)
 option(RSDKv5_STATIC "Static-link the dependencies." OFF)
+option(RSDKv5_USE_LIBVORBIS "Use libvorbis instead of stb_vorbis." OFF)
 
 project(RSDKv5 LANGUAGES C CXX)
 
@@ -54,9 +55,11 @@ target_compile_definitions(RSDKv5 PUBLIC # Public because the main function only
 )
 
 if(RSDKv5_STATIC)
-	target_link_options(RSDKv5 PUBLIC
-		"-static"
-	)
+	target_link_options(RSDKv5 PUBLIC "-static")
+endif()
+
+if(RSDKv5_USE_LIBVORBIS)
+	target_compile_definitions(RSDKv5 PRIVATE RSDKv5_USE_LIBVORBIS)
 endif()
 
 if(RSDKv5_WIIU_EXPERIMENTAL_SDL2)
@@ -72,7 +75,24 @@ if(RSDKv5_WIIU_SKIP_PKGCONFIG)
 
 	target_compile_options(RSDKv5 PRIVATE "-I${DEVKITPRO}/portlibs/ppc/include")
 	target_link_libraries(RSDKv5 PRIVATE "-L${DEVKITPRO}/portlibs/ppc/lib -ltheora -logg")
+
+	if(RSDKv5_USE_LIBVORBIS)
+		target_compile_options(RSDKv5 PRIVATE "-I${DEVKITPRO}/portlibs/ppc/include")
+		target_link_libraries(RSDKv5 PRIVATE "-L${DEVKITPRO}/portlibs/ppc/lib -lvorbisfile -lvorbis -lm -logg")
+	endif()
 else()
+	function(link_library_with_pkgconf target visibility lib)
+		pkg_check_modules(${lib} REQUIRED IMPORTED_TARGET ${lib})
+
+		if(RSDKv5_STATIC)
+			target_compile_options(${target} ${VISIBILITY} ${${lib}_STATIC_CFLAGS})
+			target_link_libraries(${target} PRIVATE ${${lib}_STATIC_LDFLAGS})
+		else()
+			target_compile_options(${target} ${visibility} ${${lib}_CFLAGS})
+			target_link_libraries(${target} PRIVATE ${${lib}_LDFLAGS})
+		endif()
+	endfunction()
+
 	find_package(PkgConfig REQUIRED)
 
 	if(NOT RSDKv5_WIIU_EXPERIMENTAL_SDL2)
@@ -82,25 +102,13 @@ else()
 			target_link_libraries(RSDKv5 PUBLIC mingw32)
 		endif()
 
-		pkg_check_modules(sdl2 REQUIRED IMPORTED_TARGET sdl2)
-
-		if(RSDKv5_STATIC)
-			target_compile_options(RSDKv5 PUBLIC ${sdl2_STATIC_CFLAGS}) # Public because SDL2 may use a define to redirect the main function.
-			target_link_libraries(RSDKv5 PRIVATE ${sdl2_STATIC_LDFLAGS})
-		else()
-			target_compile_options(RSDKv5 PUBLIC ${sdl2_CFLAGS}) # Public because SDL2 may use a define to redirect the main function.
-			target_link_libraries(RSDKv5 PRIVATE ${sdl2_LDFLAGS})
-		endif()
+		link_library_with_pkgconf(RSDKv5 PUBLIC sdl2)
 	endif()
 
-	pkg_check_modules(theoradec REQUIRED IMPORTED_TARGET theoradec)
+	link_library_with_pkgconf(RSDKv5 PRIVATE theoradec)
 
-	if(RSDKv5_STATIC)
-		target_compile_options(RSDKv5 PRIVATE ${theoradec_STATIC_CFLAGS})
-		target_link_libraries(RSDKv5 PRIVATE ${theoradec_STATIC_LDFLAGS})
-	else()
-		target_compile_options(RSDKv5 PRIVATE ${theoradec_CFLAGS})
-		target_link_libraries(RSDKv5 PRIVATE ${theoradec_LDFLAGS})
+	if(RSDKv5_USE_LIBVORBIS)
+		link_library_with_pkgconf(RSDKv5 PRIVATE vorbisfile)
 	endif()
 endif()
 

@@ -4,6 +4,20 @@
 #include "Legacy/AudioLegacy.cpp"
 #endif
 
+#ifdef RETRO_LIBVORBIS
+
+#include <vorbis/vorbisfile.h>
+
+static struct VorbisMetadata
+{
+	OggVorbis_File file;
+	const unsigned char *buffer;
+	size_t size;
+	size_t position;
+} vorbisMetadata;
+
+#else
+
 #define STB_VORBIS_NO_PUSHDATA_API
 #define STB_VORBIS_NO_STDIO
 #define STB_VORBIS_NO_INTEGER_CONVERSION
@@ -11,6 +25,8 @@
 
 stb_vorbis *vorbisInfo = NULL;
 stb_vorbis_alloc vorbisAlloc;
+
+#endif
 
 using namespace RSDK;
 
@@ -25,6 +41,82 @@ int32 streamLoopPoint  = 0;
 
 float speedMixAmounts[0x400];
 
+uint8 AudioDeviceBase::initializedAudioChannels = false;
+uint8 AudioDeviceBase::audioState               = 0;
+uint8 AudioDeviceBase::audioFocus               = 0;
+
+int32 AudioDeviceBase::mixBufferID = 0;
+float AudioDeviceBase::mixBuffer[3][MIX_BUFFER_SIZE];
+
+#ifdef RETRO_LIBVORBIS
+static size_t fread_wrapper(void *output, size_t size, size_t count, void *file)
+{
+	VorbisMetadata *vorbisMetadata = (VorbisMetadata*)file;
+
+	count = MIN(count, (vorbisMetadata->size - vorbisMetadata->position) / size);
+
+	memcpy(output, &vorbisMetadata->buffer[vorbisMetadata->position], count * size);
+
+	vorbisMetadata->position += count * size;
+
+	return count;
+}
+
+static int fseek_wrapper(void *file, ogg_int64_t offset, int origin)
+{
+	VorbisMetadata *vorbisMetadata = (VorbisMetadata*)file;
+
+	switch (origin)
+	{
+		case SEEK_SET:
+			vorbisMetadata->position = offset;
+			break;
+
+		case SEEK_CUR:
+			vorbisMetadata->position += offset;
+			break;
+
+		case SEEK_END:
+			vorbisMetadata->position = vorbisMetadata->size + offset;
+			break;
+
+		default:
+			return -1;
+	}
+
+	return 0;
+}
+
+static long ftell_wrapper(void *file)
+{
+	VorbisMetadata *vorbisMetadata = (VorbisMetadata*)file;
+
+	return vorbisMetadata->position;
+}
+
+static const ov_callbacks vorbisCallbacks = {
+	fread_wrapper,
+	fseek_wrapper,
+	NULL,
+	ftell_wrapper
+};
+#endif
+
+static inline void UnloadStream()
+{
+#ifdef RETRO_LIBVORBIS
+    ov_clear(&vorbisMetadata.file);
+#else
+    stb_vorbis_close(vorbisInfo);
+//    if (vorbisInfo) {
+//        vorbis_deinit(vorbisInfo);
+//        if (!vorbisInfo->alloc.alloc_buffer)
+//            free(vorbisInfo);
+//    }
+    vorbisInfo = NULL;
+#endif
+}
+
 #if RETRO_AUDIODEVICE_XAUDIO
 #include "XAudio/XAudioDevice.cpp"
 #elif RETRO_AUDIODEVICE_NX
@@ -35,22 +127,30 @@ float speedMixAmounts[0x400];
 #include "Oboe/OboeAudioDevice.cpp"
 #endif
 
-uint8 AudioDeviceBase::initializedAudioChannels = false;
-uint8 AudioDeviceBase::audioState               = 0;
-uint8 AudioDeviceBase::audioFocus               = 0;
-
-int32 AudioDeviceBase::mixBufferID = 0;
-float AudioDeviceBase::mixBuffer[3][MIX_BUFFER_SIZE];
-
 void RSDK::UpdateStreamBuffer(ChannelInfo *channel)
 {
     int32 bufferRemaining = 0x800;
     float *buffer         = channel->samplePtr;
 
     for (int32 s = 0; s < 0x800;) {
+#ifdef RETRO_LIBVORBIS
+	float **float_buffer;
+	int32 samples = ov_read_float(&vorbisMetadata.file, &float_buffer, bufferRemaining / 2, NULL) * 2;
+
+	for (int32 i = 0; i < samples / 2; ++i)
+		for (int32 j = 0; j < 2; ++j)
+			buffer[i * 2 + j] = float_buffer[j][i];
+#else
         int32 samples = stb_vorbis_get_samples_float_interleaved(vorbisInfo, 2, buffer, bufferRemaining) * 2;
+#endif
         if (!samples) {
-            if (channel->loop == 1 && stb_vorbis_seek_frame(vorbisInfo, streamLoopPoint)) {
+            if (channel->loop == 1 &&
+#ifdef RETRO_LIBVORBIS
+                ov_pcm_seek(&vorbisMetadata.file, streamLoopPoint) == 0
+#else
+                stb_vorbis_seek_frame(vorbisInfo, streamLoopPoint)
+#endif
+                ) {
                 // we're looping & the seek was successful, get more samples
             }
             else {
@@ -82,11 +182,16 @@ void RSDK::LoadStream(ChannelInfo *channel)
     if (channel->state != CHANNEL_LOADING_STREAM)
         return;
 
-    if (vorbisInfo) {
-        vorbis_deinit(vorbisInfo);
-        if (!vorbisInfo->alloc.alloc_buffer)
-            free(vorbisInfo);
-    }
+#ifdef RETRO_LIBVORBIS
+    ov_clear(&vorbisMetadata.file);
+#else
+    stb_vorbis_close(vorbisInfo);
+//    if (vorbisInfo) {
+//        vorbis_deinit(vorbisInfo);
+//        if (!vorbisInfo->alloc.alloc_buffer)
+//            free(vorbisInfo);
+//    }
+#endif
 
     FileInfo info;
     InitFileInfo(&info);
@@ -99,13 +204,25 @@ void RSDK::LoadStream(ChannelInfo *channel)
         CloseFile(&info);
 
         if (streamBufferSize > 0) {
+#ifdef RETRO_LIBVORBIS
+            vorbisMetadata.buffer = streamBuffer;
+	    vorbisMetadata.size = streamBufferSize;
+	    vorbisMetadata.position = 0;
+
+            if (ov_open_callbacks(&vorbisMetadata, &vorbisMetadata.file, NULL, 0, vorbisCallbacks) == 0) {
+#else
             vorbisAlloc.alloc_buffer_length_in_bytes = 0x80000;
             AllocateStorage((void **)&vorbisAlloc, 0x80000, DATASET_MUS, false);
 
             vorbisInfo = stb_vorbis_open_memory(streamBuffer, streamBufferSize, NULL, &vorbisAlloc);
             if (vorbisInfo) {
+#endif
                 if (streamStartPos)
+#ifdef RETRO_LIBVORBIS
+                    ov_pcm_seek(&vorbisMetadata.file, streamStartPos);
+#else
                     stb_vorbis_seek(vorbisInfo, streamStartPos);
+#endif
                 UpdateStreamBuffer(channel);
 
                 channel->state = CHANNEL_STREAM;
@@ -380,10 +497,14 @@ uint32 RSDK::GetChannelPos(uint32 channel)
         return channels[channel].bufferPos;
 
     if (channels[channel].state == CHANNEL_STREAM) {
+#ifdef RETRO_LIBVORBIS
+        return ov_pcm_tell(&vorbisMetadata.file);
+#else
         if (!vorbisInfo->current_loc_valid || vorbisInfo->current_loc < 0)
             return 0;
 
         return vorbisInfo->current_loc;
+#endif
     }
 
     return 0;
@@ -391,9 +512,13 @@ uint32 RSDK::GetChannelPos(uint32 channel)
 
 double RSDK::GetVideoStreamPos()
 {
-    if (channels[0].state == CHANNEL_STREAM && AudioDevice::audioState && AudioDevice::initializedAudioChannels && vorbisInfo->current_loc_valid) {
-        return vorbisInfo->current_loc / (float)AUDIO_FREQUENCY;
-    }
+    if (channels[0].state == CHANNEL_STREAM && AudioDevice::audioState && AudioDevice::initializedAudioChannels)
+#ifdef RETRO_LIBVORBIS
+        return ov_pcm_tell(&vorbisMetadata.file) / (float)AUDIO_FREQUENCY;
+#else
+        if (vorbisInfo->current_loc_valid)
+            return vorbisInfo->current_loc / (float)AUDIO_FREQUENCY;
+#endif
 
     return -1.0;
 }
