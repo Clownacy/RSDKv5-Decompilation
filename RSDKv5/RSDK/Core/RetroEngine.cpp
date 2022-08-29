@@ -58,6 +58,10 @@ int32 RSDK::RunRetroEngine(int32 argc, char *argv[])
     chdir("RSDK/v5");
 #endif
 
+#if RETRO_RENDERDEVICE_SDL2 || RETRO_AUDIODEVICE_SDL2 || RETRO_INPUTDEVICE_SDL2
+    SDL_Init(0);
+#endif
+
     RenderDevice::isRunning = false;
     if (InitStorage()) {
         SKU::InitUserCore();
@@ -311,6 +315,10 @@ int32 RSDK::RunRetroEngine(int32 argc, char *argv[])
 
     Link::Close(gameLogicHandle);
     gameLogicHandle = NULL;
+
+#if RETRO_RENDERDEVICE_SDL2 || RETRO_AUDIODEVICE_SDL2 || RETRO_INPUTDEVICE_SDL2
+    SDL_Quit();
+#endif
 
 #ifdef __WIIU__
     WHBUnmountSdCard();
