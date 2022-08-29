@@ -31,6 +31,8 @@ First, follow the steps in [the common dependency README](./dependencies/all/REA
 
 * ### [Android](./dependencies/android/README.md)
 
+* ### [Wii U](./dependencies/wiiu/README.md).
+
 ### Other Platforms
 Currently, the only officially supported platforms are the ones listed above. However, the backend is very modular, so the codebase is very multiplatform.
 
