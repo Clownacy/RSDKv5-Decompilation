@@ -608,7 +608,7 @@ void RSDK::LoadSceneAssets()
 
                         case VAR_COLOR:
                             if (varList[v].active)
-                                ReadBytes(&info, &entityBuffer[varList[v].offset], sizeof(color));
+                                *(int32*)&entityBuffer[varList[v].offset] = ReadInt32(&info, false);
                             else
                                 ReadBytes(&info, tempBuffer, sizeof(color));
                             break;
