@@ -1163,6 +1163,10 @@ void RSDK::SKU::InitUserDirectory()
 
     SKU::SetUserFileCallbacks("./", NULL, NULL);
 
+#elif RETRO_PLATFORM == RETRO_WIIU
+
+    SKU::SetUserFileCallbacks("RSDK/v5/", NULL, NULL);
+
 #else
 
     SKU::SetUserFileCallbacks("", NULL, NULL);

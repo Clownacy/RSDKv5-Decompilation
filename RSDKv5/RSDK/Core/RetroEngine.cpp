@@ -4,11 +4,6 @@
 #include "Legacy/RetroEngineLegacy.cpp"
 #endif
 
-#ifdef __WIIU__
-#include <unistd.h>
-#include <whb/sdcard.h>
-#endif
-
 using namespace RSDK;
 
 LogicLinkHandle RSDK::linkGameLogic = NULL;
@@ -47,15 +42,6 @@ int32 RSDK::RunRetroEngine(int32 argc, char *argv[])
     MSG Msg;
     PeekMessage(&Msg, NULL, 0, 0, PM_REMOVE);
     InitCommonControls();
-#endif
-
-#ifdef __WIIU__
-    // chdir into the SD card
-    if (!WHBMountSdCard())
-        return EXIT_FAILURE;
-
-    chdir(WHBGetSdCardMountPath());
-    chdir("RSDK/v5");
 #endif
 
 #if RETRO_RENDERDEVICE_SDL2 || RETRO_AUDIODEVICE_SDL2 || RETRO_INPUTDEVICE_SDL2
@@ -339,10 +325,6 @@ int32 RSDK::RunRetroEngine(int32 argc, char *argv[])
 
 #if RETRO_RENDERDEVICE_SDL2 || RETRO_AUDIODEVICE_SDL2 || RETRO_INPUTDEVICE_SDL2
     SDL_Quit();
-#endif
-
-#ifdef __WIIU__
-    WHBUnmountSdCard();
 #endif
 
     if (engine.consoleEnabled) {
