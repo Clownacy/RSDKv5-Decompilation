@@ -165,7 +165,8 @@ void RSDK::LoadModSettings()
     modSettings.forceScripts    = false;
 #endif
 
-    for (int32 i = (int32)ActiveMods().size() - 1; i >= 0; --i) {
+    int32 activeModCount = (int32)ActiveMods().size();
+    for (int32 i = activeModCount - 1; i >= 0; --i) {
         ModInfo *mod = &modList[i];
 
         if (mod->redirectSaveRAM) {
@@ -474,7 +475,7 @@ bool32 RSDK::LoadMod(ModInfo *info, std::string modsPath, std::string folder, bo
 
         info->forceVersion = iniparser_getint(ini, ":ForceVersion", 0);
         if (!info->forceVersion) {
-            info->targetVersion = iniparser_getint(ini, ":TargetVersion", -1);
+            info->targetVersion = iniparser_getint(ini, ":TargetVersion", 5);
             if (info->targetVersion != -1 && ENGINE_VERSION) {
                 if (info->targetVersion < 3 || info->targetVersion > 5) {
                     PrintLog(PRINT_NORMAL, "[MOD] Invalid target version. Should be 3, 4, or 5");
@@ -835,9 +836,10 @@ void RSDK::AddPublicFunction(const char *functionName, void *functionPtr)
 void *RSDK::GetPublicFunction(const char *id, const char *functionName)
 {
     if (!id) {
-        for (auto &f : gamePublicFuncs)
+        for (auto &f : gamePublicFuncs) {
             if (f.name == functionName)
                 return f.ptr;
+        }
 
         return NULL;
     }
@@ -847,9 +849,10 @@ void *RSDK::GetPublicFunction(const char *id, const char *functionName)
 
     for (ModInfo &m : modList) {
         if (m.active && m.id == id) {
-            for (auto &f : m.functionList)
+            for (auto &f : m.functionList) {
                 if (f.name == functionName)
                     return f.ptr;
+            }
 
             return NULL;
         }
@@ -861,9 +864,10 @@ void *RSDK::GetPublicFunction(const char *id, const char *functionName)
 void RSDK::GetModPath(const char *id, String *result)
 {
     int32 m;
-    for (m = 0; m < modList.size(); ++m)
+    for (m = 0; m < modList.size(); ++m) {
         if (modList[m].active && modList[m].id == id)
             break;
+    }
 
     if (m == modList.size())
         return;
@@ -876,9 +880,10 @@ void RSDK::GetModPath(const char *id, String *result)
 std::string GetModPath_i(const char *id)
 {
     int32 m;
-    for (m = 0; m < modList.size(); ++m)
+    for (m = 0; m < modList.size(); ++m) {
         if (modList[m].active && modList[m].id == id)
             break;
+    }
 
     if (m == modList.size())
         return std::string();
@@ -1197,7 +1202,7 @@ void RSDK::SetSettingsString(const char *key, String *val)
 void RSDK::SaveSettings()
 {
     using namespace std;
-    if (!currentMod || !currentMod->settings.size())
+    if (!currentMod || !currentMod->settings.size() || !currentMod->active)
         return;
 
     FileIO *file = fOpen((GetModPath_i(currentMod->id.c_str()) + "/modSettings.ini").c_str(), "w");

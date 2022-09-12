@@ -26,27 +26,8 @@ int32 RSDK::RunRetroEngine(int32 argc, char *argv[])
 {
     ParseArguments(argc, argv);
 
-    if (engine.consoleEnabled) {
-#if RETRO_PLATFORM == RETRO_WIN
-        AllocConsole();
-        AttachConsole(GetCurrentProcessId());
-
-        freopen("CON", "w", stdout);
-#endif
-#if RETRO_PLATFORM == RETRO_SWITCH
-        consoleInit(NULL);
-#endif
-    }
-
-#if RETRO_RENDERDEVICE_DIRECTX9 || RETRO_RENDERDEVICE_DIRECTX11
-    MSG Msg;
-    PeekMessage(&Msg, NULL, 0, 0, PM_REMOVE);
-    InitCommonControls();
-#endif
-
-#if RETRO_RENDERDEVICE_SDL2 || RETRO_AUDIODEVICE_SDL2 || RETRO_INPUTDEVICE_SDL2
-    SDL_Init(0);
-#endif
+    if (engine.consoleEnabled)
+        InitConsole();
 
     RenderDevice::isRunning = false;
     if (InitStorage()) {
@@ -56,10 +37,10 @@ int32 RSDK::RunRetroEngine(int32 argc, char *argv[])
 #if RETRO_USE_MOD_LOADER
 #if RETRO_REV0U
         engine.version = 0;
-#endif
         InitModAPI(); // setup mods & the mod API table
-#if RETRO_REV0U
         engine.version = 5;
+#else
+        InitModAPI(); // setup mods & the mod API table
 #endif
 #endif
 
@@ -91,16 +72,14 @@ int32 RSDK::RunRetroEngine(int32 argc, char *argv[])
         }
         else {
             // No render device, throw a "QUIT" msg onto the message loop and call it a day :)
-#if RETRO_RENDERDEVICE_DIRECTX9 || RETRO_RENDERDEVICE_DIRECTX11
-            PostQuitMessage(0);
-#endif
+            SendQuitMsg();
         }
     }
 
     RenderDevice::InitFPSCap();
 
     while (RenderDevice::isRunning) {
-        RenderDevice::isRunning = RenderDevice::ProcessEvents();
+        RenderDevice::ProcessEvents();
 
         if (!RenderDevice::isRunning)
             break;
@@ -145,7 +124,7 @@ int32 RSDK::RunRetroEngine(int32 argc, char *argv[])
 
 #if !RETRO_USE_ORIGINAL_CODE
                 for (int32 c = 0; c < CHANNEL_COUNT; ++c) {
-                    if (engine.focusPausedChannel[c]) 
+                    if (engine.focusPausedChannel[c])
                         ResumeChannel(c);
                     engine.focusPausedChannel[c] = false;
                 }
@@ -203,10 +182,10 @@ int32 RSDK::RunRetroEngine(int32 argc, char *argv[])
                         globalVarsPtr    = NULL;
                         globalVarsInitCB = NULL;
 
-                        dataStorage[DATASET_STG].entryCount     = 0;
-                        dataStorage[DATASET_STG].usedStorage    = 0;
-                        dataStorage[DATASET_SFX].entryCount     = 0;
-                        dataStorage[DATASET_SFX].usedStorage    = 0;
+                        dataStorage[DATASET_STG].entryCount  = 0;
+                        dataStorage[DATASET_STG].usedStorage = 0;
+                        dataStorage[DATASET_SFX].entryCount  = 0;
+                        dataStorage[DATASET_SFX].usedStorage = 0;
 
                         for (int32 o = 0; o < objectClassCount; ++o) {
                             if (objectClassList[o].staticVars && *objectClassList[o].staticVars)
@@ -234,13 +213,13 @@ int32 RSDK::RunRetroEngine(int32 argc, char *argv[])
                         }
 
 #else
-                    SceneInfo pre = sceneInfo;
-                    InitEngine();
-                    sceneInfo.classCount = pre.classCount;
-                    if (pre.state == ENGINESTATE_LOAD) {
-                        sceneInfo.activeCategory = pre.activeCategory;
-                        sceneInfo.listPos        = pre.listPos;
-                    }
+                        SceneInfo pre = sceneInfo;
+                        InitEngine();
+                        sceneInfo.classCount = pre.classCount;
+                        if (pre.state == ENGINESTATE_LOAD) {
+                            sceneInfo.activeCategory = pre.activeCategory;
+                            sceneInfo.listPos        = pre.listPos;
+                        }
 #endif
                         RenderDevice::SetWindowTitle();
                         sceneInfo.state = ENGINESTATE_LOAD;
@@ -261,7 +240,7 @@ int32 RSDK::RunRetroEngine(int32 argc, char *argv[])
                         case 3: Legacy::v3::ProcessEngine(); break;
                     }
 #else
-                ProcessEngine();
+                    ProcessEngine();
 #endif
                 }
 
@@ -311,6 +290,7 @@ int32 RSDK::RunRetroEngine(int32 argc, char *argv[])
 
     // Shutdown
 
+    ReleaseInputDevices();
     AudioDevice::Release();
     RenderDevice::Release(false);
     SaveSettingsINI(false);
@@ -323,15 +303,8 @@ int32 RSDK::RunRetroEngine(int32 argc, char *argv[])
     Link::Close(gameLogicHandle);
     gameLogicHandle = NULL;
 
-#if RETRO_RENDERDEVICE_SDL2 || RETRO_AUDIODEVICE_SDL2 || RETRO_INPUTDEVICE_SDL2
-    SDL_Quit();
-#endif
-
-    if (engine.consoleEnabled) {
-#if RETRO_PLATFORM == RETRO_WIN
-        FreeConsole();
-#endif
-    }
+    if (engine.consoleEnabled)
+        ReleaseConsole();
 
     return 0;
 }
@@ -726,8 +699,10 @@ void RSDK::LoadXMLObjects()
 {
     FileInfo info;
 
-    for (int32 m = 0; m < (int32)ActiveMods().size(); ++m) {
+    int32 activeModCount = (int32)ActiveMods().size();
+    for (int32 m = 0; m < activeModCount; ++m) {
         SetActiveMod(m);
+
         InitFileInfo(&info);
         if (LoadFile(&info, "Data/Game/Game.xml", FMODE_RB)) {
             tinyxml2::XMLDocument *doc = new tinyxml2::XMLDocument;
@@ -778,7 +753,9 @@ void RSDK::LoadXMLObjects()
 void RSDK::LoadXMLSoundFX()
 {
     FileInfo info;
-    for (int32 m = 0; m < (int32)ActiveMods().size(); ++m) {
+
+    int32 activeModCount = (int32)ActiveMods().size();
+    for (int32 m = 0; m < activeModCount; ++m) {
         SetActiveMod(m);
         InitFileInfo(&info);
         if (LoadFile(&info, "Data/Game/Game.xml", FMODE_RB)) {
@@ -804,7 +781,7 @@ void RSDK::LoadXMLSoundFX()
                                 sfxPath = valAttr->Value();
 
                             const tinyxml2::XMLAttribute *playsAttr = sfxElement->FindAttribute("maxConcurrentPlays");
-                            int32 maxConcurrentPlays = 0;
+                            int32 maxConcurrentPlays                = 0;
                             if (playsAttr)
                                 maxConcurrentPlays = playsAttr->IntValue();
 
@@ -830,7 +807,8 @@ int32 RSDK::LoadXMLStages(int32 mode, int32 gcListCount, int32 gcStageCount)
     int32 listCount  = 0;
     int32 stageCount = 0;
 
-    for (int32 m = 0; m < (int32)ActiveMods().size(); ++m) {
+    int32 activeModCount = (int32)ActiveMods().size();
+    for (int32 m = 0; m < activeModCount; ++m) {
         SetActiveMod(m);
         InitFileInfo(&info);
         if (LoadFile(&info, "Data/Game/Game.xml", FMODE_RB)) {
@@ -1246,7 +1224,8 @@ void RSDK::InitGameLink()
 #if RETRO_USE_MOD_LOADER
     }
 
-    for (int32 m = 0; m < ActiveMods().size(); ++m) {
+    int32 activeModCount = (int32)ActiveMods().size();
+    for (int32 m = 0; m < activeModCount; ++m) {
         currentMod = &modList[m];
         for (modLinkSTD linkModLogic : modList[m].linkModLogic) {
             if (!linkModLogic(&info, modList[m].id.c_str())) {
@@ -1351,5 +1330,84 @@ void RSDK::ProcessDebugCommands()
         if (framePaused)
             sceneInfo.state ^= ENGINESTATE_STEPOVER;
     }
+#endif
+}
+
+#ifdef __SWITCH__
+#include <switch.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/errno.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+
+static int32 s_nxlinkSock = -1;
+
+static void initNxLink()
+{
+    if (R_FAILED(socketInitializeDefault()))
+        return;
+
+    s_nxlinkSock = nxlinkStdio();
+    if (s_nxlinkSock >= 0)
+        printf("printf output now goes to nxlink server\n");
+    else
+        socketExit();
+}
+#endif
+
+void RSDK::InitCoreAPI()
+{
+#if RETRO_RENDERDEVICE_DIRECTX9 || RETRO_RENDERDEVICE_DIRECTX11
+    MSG Msg;
+    PeekMessage(&Msg, NULL, 0, 0, PM_REMOVE);
+    InitCommonControls();
+#endif
+
+#ifdef __SWITCH__
+    // initNxLink();
+#endif
+
+#if RETRO_RENDERDEVICE_SDL2 || RETRO_AUDIODEVICE_SDL2 || RETRO_INPUTDEVICE_SDL2
+    SDL_Init(0);
+#endif
+}
+void RSDK::ReleaseCoreAPI()
+{
+#if RETRO_RENDERDEVICE_SDL2 || RETRO_AUDIODEVICE_SDL2 || RETRO_INPUTDEVICE_SDL2
+    SDL_Quit();
+#endif
+
+#ifdef __SWITCH__
+    // socketExit();
+#endif
+}
+
+void RSDK::InitConsole()
+{
+#if RETRO_PLATFORM == RETRO_WIN
+    AllocConsole();
+    AttachConsole(GetCurrentProcessId());
+
+    freopen("CON", "w", stdout);
+#endif
+
+#if RETRO_PLATFORM == RETRO_SWITCH
+    consoleInit(NULL);
+#endif
+}
+void RSDK::ReleaseConsole()
+{
+#if RETRO_PLATFORM == RETRO_WIN
+    FreeConsole();
+#endif
+}
+
+void RSDK::SendQuitMsg()
+{
+#if RETRO_RENDERDEVICE_DIRECTX9 || RETRO_RENDERDEVICE_DIRECTX11
+    PostQuitMessage(0);
 #endif
 }
