@@ -51,8 +51,6 @@ void AudioDevice::ProcessAudioMixing(void *stream, int32 length)
 
     memset(stream, 0, length * sizeof(SAMPLE_FORMAT));
 
-    LockAudioDevice();
-
     for (int32 c = 0; c < CHANNEL_COUNT; ++c) {
         ChannelInfo *channel = &channels[c];
 
@@ -145,8 +143,6 @@ void AudioDevice::ProcessAudioMixing(void *stream, int32 length)
             case CHANNEL_LOADING_STREAM: break;
         }
     }
-
-    UnlockAudioDevice();
 }
 
 void AudioDevice::InitAudioChannels()
