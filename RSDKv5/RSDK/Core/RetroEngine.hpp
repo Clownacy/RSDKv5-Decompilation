@@ -96,14 +96,7 @@ enum GameRegions {
 
 #define sprintf_s(x, _, ...) sprintf(x, __VA_ARGS__)
 
-#if defined __WIIU__
-#define RETRO_PLATFORM   (RETRO_WIIU)
-#define RETRO_DEVICETYPE (RETRO_STANDARD)
-
-#undef sprintf_s
-#define sprintf_s(x, _, ...) snprintf(x, _, __VA_ARGS__)
-
-#elif defined _WIN32
+#if defined _WIN32
 #undef sprintf_s
 
 #if defined WINAPI_FAMILY
@@ -145,6 +138,13 @@ enum GameRegions {
 #elif defined __linux__
 #define RETRO_PLATFORM   (RETRO_LINUX)
 #define RETRO_DEVICETYPE (RETRO_STANDARD)
+#elif defined __WIIU__
+#define RETRO_PLATFORM   (RETRO_WIIU)
+#define RETRO_DEVICETYPE (RETRO_STANDARD)
+
+#undef sprintf_s
+#define sprintf_s(x, _, ...) snprintf(x, _, __VA_ARGS__)
+
 #else
 #define RETRO_PLATFORM   (RETRO_WIN)
 #define RETRO_DEVICETYPE (RETRO_STANDARD)
@@ -449,7 +449,6 @@ enum GameRegions {
 #elif RETRO_PLATFORM == RETRO_iOS
 
 #include "cocoaHelpers.hpp"
-
 #elif RETRO_PLATFORM == RETRO_LINUX || RETRO_PLATFORM == RETRO_SWITCH
 
 #if RETRO_RENDERDEVICE_GLFW

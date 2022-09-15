@@ -558,6 +558,7 @@ void RSDK::LoadSettingsINI()
     if (customSettings.dlcEnabled)
         for (int32 v = 0; v < SKU::userCore->valueCount; ++v) SKU::userCore->values[v] = true;
 #endif
+#endif
 }
 
 void RSDK::SaveSettingsINI(bool32 writeToFile)
@@ -739,6 +740,7 @@ void RSDK::SaveSettingsINI(bool32 writeToFile)
         fClose(file);
     }
 
+#if !RETRO_USE_ORIGINAL_CODE
     if (gamePadCount && gamePadMappings)
         delete[] gamePadMappings;
     gamePadMappings = NULL;

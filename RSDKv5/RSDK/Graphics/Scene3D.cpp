@@ -817,19 +817,6 @@ void RSDK::AddMeshFrameToScene(uint16 modelFrames, uint16 sceneIndex, Animator *
     }
 }
 
-static int Sort3DDrawListComparison(const void *a, const void *b)
-{
-	const Scene3DFace *face1 = (const Scene3DFace*)a;
-	const Scene3DFace *face2 = (const Scene3DFace*)b;
-
-	if (face1->depth > face2->depth)
-		return -1;
-	else if (face1->depth < face2->depth)
-		return 1;
-	else //if (face1->depth == face2->depth)
-		return 0;
-}
-/*
 void RSDK::Sort3DDrawList(Scene3D *scn, int32 first, int32 last)
 {
     if (first < last) {
@@ -855,7 +842,7 @@ void RSDK::Sort3DDrawList(Scene3D *scn, int32 first, int32 last)
         Sort3DDrawList(scn, j + 1, last);
     }
 }
-*/
+
 void RSDK::Draw3DScene(uint16 sceneID)
 {
     if (sceneID < SCENE3D_COUNT) {
@@ -896,8 +883,7 @@ void RSDK::Draw3DScene(uint16 sceneID)
             vertIndex += scn->faceVertCounts[i];
         }
 
-        //Sort3DDrawList(scn, 0, scn->faceCount - 1);
-        qsort(scn->faceBuffer, scn->faceCount, sizeof(*scn->faceBuffer), Sort3DDrawListComparison);
+        Sort3DDrawList(scn, 0, scn->faceCount - 1);
 
         uint8 *vertCnt = scn->faceVertCounts;
         Vector2 vertPos[4];
