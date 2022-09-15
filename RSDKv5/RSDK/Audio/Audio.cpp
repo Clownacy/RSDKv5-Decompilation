@@ -41,13 +41,6 @@ int32 streamLoopPoint  = 0;
 
 float speedMixAmounts[0x400];
 
-uint8 AudioDeviceBase::initializedAudioChannels = false;
-uint8 AudioDeviceBase::audioState               = 0;
-uint8 AudioDeviceBase::audioFocus               = 0;
-
-int32 AudioDeviceBase::mixBufferID = 0;
-float AudioDeviceBase::mixBuffer[3][MIX_BUFFER_SIZE];
-
 #ifdef RETRO_LIBVORBIS
 static size_t fread_wrapper(void *output, size_t size, size_t count, void *file)
 {
@@ -116,6 +109,23 @@ static inline void UnloadStream()
     vorbisInfo = NULL;
 #endif
 }
+
+#if RETRO_AUDIODEVICE_XAUDIO
+#include "XAudio/XAudioDevice.cpp"
+#elif RETRO_AUDIODEVICE_NX
+#include "NX/NXAudioDevice.cpp"
+#elif RETRO_AUDIODEVICE_SDL2
+#include "SDL2/SDL2AudioDevice.cpp"
+#elif RETRO_AUDIODEVICE_OBOE
+#include "Oboe/OboeAudioDevice.cpp"
+#endif
+
+uint8 AudioDeviceBase::initializedAudioChannels = false;
+uint8 AudioDeviceBase::audioState               = 0;
+uint8 AudioDeviceBase::audioFocus               = 0;
+
+int32 AudioDeviceBase::mixBufferID = 0;
+float AudioDeviceBase::mixBuffer[3][MIX_BUFFER_SIZE];
 
 void AudioDeviceBase::ProcessAudioMixing(void *stream, int32 length)
 {
@@ -217,16 +227,6 @@ void AudioDeviceBase::ProcessAudioMixing(void *stream, int32 length)
         }
     }
 }
-
-#if RETRO_AUDIODEVICE_XAUDIO
-#include "XAudio/XAudioDevice.cpp"
-#elif RETRO_AUDIODEVICE_NX
-#include "NX/NXAudioDevice.cpp"
-#elif RETRO_AUDIODEVICE_SDL2
-#include "SDL2/SDL2AudioDevice.cpp"
-#elif RETRO_AUDIODEVICE_OBOE
-#include "Oboe/OboeAudioDevice.cpp"
-#endif
 
 void RSDK::UpdateStreamBuffer(ChannelInfo *channel)
 {
@@ -416,7 +416,7 @@ void RSDK::LoadSfxToSlot(char *filename, uint8 slot, uint8 plays, uint8 scope)
                 ReadInt32(&info, false);                   // chunk size
                 ReadInt32(&info, false);                   // WAVE
                 ReadInt32(&info, false);                   // FMT
-#if !RETRO_ORIGINAL_CODE
+#if !RETRO_USE_ORIGINAL_CODE
                 int32 chunkSize = ReadInt32(&info, false); // chunk size
 #else
                 ReadInt32(&info, false);                   // chunk size
@@ -431,7 +431,7 @@ void RSDK::LoadSfxToSlot(char *filename, uint8 slot, uint8 plays, uint8 scope)
                 Seek_Set(&info, 34);
                 uint16 sampleBits = ReadInt16(&info);
 
-#if !RETRO_ORIGINAL_CODE
+#if !RETRO_USE_ORIGINAL_CODE
                 // Original code added to help fix some issues
                 Seek_Set(&info, 20 + chunkSize);
 #endif
@@ -450,7 +450,7 @@ void RSDK::LoadSfxToSlot(char *filename, uint8 slot, uint8 plays, uint8 scope)
                             // There's a bug here: `sfxList[id].scope` is not reset to `SCOPE_NONE`,
                             // meaning that the game will consider the SFX valid and allow it to be played.
                             // This can cause a crash because the SFX is incomplete.
-#if !RETRO_ORIGINAL_CODE
+#if !RETRO_USE_ORIGINAL_CODE
                             PrintLog(PRINT_ERROR, "Unable to read sfx: %s", filename);
 #endif
                             return;
@@ -485,20 +485,20 @@ void RSDK::LoadSfxToSlot(char *filename, uint8 slot, uint8 plays, uint8 scope)
                     }
                 }
             }
-#if !RETRO_ORIGINAL_CODE
+#if !RETRO_USE_ORIGINAL_CODE
             else {
                 PrintLog(PRINT_ERROR, "Invalid header in sfx: %s", filename);
             }
 #endif
         }
-#if !RETRO_ORIGINAL_CODE
+#if !RETRO_USE_ORIGINAL_CODE
         else {
             // what the
             PrintLog(PRINT_ERROR, "Could not find header in sfx: %s", filename);
         }
 #endif
     }
-#if !RETRO_ORIGINAL_CODE
+#if !RETRO_USE_ORIGINAL_CODE
     else {
         PrintLog(PRINT_ERROR, "Unable to open sfx: %s", filename);
     }
