@@ -1165,7 +1165,7 @@ void RSDK::SKU::InitUserDirectory()
 
 #elif RETRO_PLATFORM == RETRO_WIIU
 
-    SKU::SetUserFileCallbacks("RSDK/v5/", NULL, NULL);
+    SKU::SetUserFileCallbacks(BASE_PATH, NULL, NULL);
 
 #else
 

@@ -145,6 +145,8 @@ enum GameRegions {
 #undef sprintf_s
 #define sprintf_s(x, _, ...) snprintf(x, _, __VA_ARGS__)
 
+#define BASE_PATH "RSDK/v5/"
+
 #else
 #define RETRO_PLATFORM   (RETRO_WIN)
 #define RETRO_DEVICETYPE (RETRO_STANDARD)
