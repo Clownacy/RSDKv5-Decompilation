@@ -538,7 +538,7 @@ void RSDK::LoadSceneAssets()
                         case VAR_UINT8:
                         case VAR_INT8:
                             if (varList[v].active)
-                                *(int8*)&entityBuffer[varList[v].offset] = ReadInt8(&info);
+                                ReadBytes(&info, &entityBuffer[varList[v].offset], sizeof(int8));
                             else
                                 ReadBytes(&info, tempBuffer, sizeof(int8));
                             break;
@@ -546,7 +546,12 @@ void RSDK::LoadSceneAssets()
                         case VAR_UINT16:
                         case VAR_INT16:
                             if (varList[v].active)
+#if !RETRO_USE_ORIGINAL_CODE
                                 *(int16*)&entityBuffer[varList[v].offset] = ReadInt16(&info);
+#else
+                                // This only works as intended on little-endian CPUs.
+                                ReadBytes(&info, &entityBuffer[varList[v].offset], sizeof(int16));
+#endif
                             else
                                 ReadBytes(&info, tempBuffer, sizeof(int16));
                             break;
@@ -554,7 +559,12 @@ void RSDK::LoadSceneAssets()
                         case VAR_UINT32:
                         case VAR_INT32:
                             if (varList[v].active)
+#if !RETRO_USE_ORIGINAL_CODE
                                 *(int32*)&entityBuffer[varList[v].offset] = ReadInt32(&info, false);
+#else
+                                // This only works as intended on little-endian CPUs.
+                                ReadBytes(&info, &entityBuffer[varList[v].offset], sizeof(int32));
+#endif
                             else
                                 ReadBytes(&info, tempBuffer, sizeof(int32));
                             break;
@@ -562,14 +572,24 @@ void RSDK::LoadSceneAssets()
                         // not entirely sure on specifics here, should always be sizeof(int32) but it having a unique type implies it isn't always
                         case VAR_ENUM:
                             if (varList[v].active)
+#if !RETRO_USE_ORIGINAL_CODE
                                 *(int32*)&entityBuffer[varList[v].offset] = ReadInt32(&info, false);
+#else
+                                // This only works as intended on little-endian CPUs.
+                                ReadBytes(&info, &entityBuffer[varList[v].offset], sizeof(int32));
+#endif
                             else
                                 ReadBytes(&info, tempBuffer, sizeof(int32));
                             break;
 
                         case VAR_BOOL:
                             if (varList[v].active)
-                                *(bool32*)&entityBuffer[varList[v].offset] = ReadInt32(&info, false);
+#if !RETRO_USE_ORIGINAL_CODE
+                                *(bool32*)&entityBuffer[varList[v].offset] = (bool32)ReadInt32(&info, false);
+#else
+                                // This only works as intended on little-endian CPUs.
+                                ReadBytes(&info, &entityBuffer[varList[v].offset], sizeof(bool32));
+#endif
                             else
                                 ReadBytes(&info, tempBuffer, sizeof(bool32));
                             break;
@@ -589,8 +609,14 @@ void RSDK::LoadSceneAssets()
 
                         case VAR_VECTOR2:
                             if (varList[v].active) {
+#if !RETRO_USE_ORIGINAL_CODE
                                 *(int32*)&entityBuffer[varList[v].offset] = ReadInt32(&info, false);
-                                *(int32*)&entityBuffer[varList[v].offset + sizeof(int32)] = ReadInt32(&info, false);
+				*(int32*)&entityBuffer[varList[v].offset + sizeof(int32)] = ReadInt32(&info, false);
+#else
+                                // This only works as intended on little-endian CPUs.
+                                ReadBytes(&info, &entityBuffer[varList[v].offset], sizeof(int32));
+                                ReadBytes(&info, &entityBuffer[varList[v].offset + sizeof(int32)], sizeof(int32));
+#endif
                             }
                             else {
                                 ReadBytes(&info, tempBuffer, sizeof(int32)); // x
@@ -601,14 +627,24 @@ void RSDK::LoadSceneAssets()
                         // Never used in mania so we don't know for sure, but it's our best guess!
                         case VAR_FLOAT:
                             if (varList[v].active)
+#if !RETRO_USE_ORIGINAL_CODE
                                 *(int32*)&entityBuffer[varList[v].offset] = ReadInt32(&info, false);
+#else
+                                // This only works as intended on little-endian CPUs.
+                                ReadBytes(&info, &entityBuffer[varList[v].offset], sizeof(float));
+#endif
                             else
                                 ReadBytes(&info, tempBuffer, sizeof(float));
                             break;
 
                         case VAR_COLOR:
                             if (varList[v].active)
+#if !RETRO_USE_ORIGINAL_CODE
                                 *(int32*)&entityBuffer[varList[v].offset] = ReadInt32(&info, false);
+#else
+                                // This only works as intended on little-endian CPUs.
+                                ReadBytes(&info, &entityBuffer[varList[v].offset], sizeof(color));
+#endif
                             else
                                 ReadBytes(&info, tempBuffer, sizeof(color));
                             break;
