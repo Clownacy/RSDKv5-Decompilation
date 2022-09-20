@@ -537,7 +537,12 @@ void RSDK::LoadSceneAssets()
                         case VAR_UINT8:
                         case VAR_INT8:
                             if (varList[v].active)
+#if !RETRO_USE_ORIGINAL_CODE
+                                *(int8*)&entityBuffer[varList[v].offset] = ReadInt8(&info);
+#else
+                                // Stupid.
                                 ReadBytes(&info, &entityBuffer[varList[v].offset], sizeof(int8));
+#endif
                             else
                                 ReadBytes(&info, tempBuffer, sizeof(int8));
                             break;
