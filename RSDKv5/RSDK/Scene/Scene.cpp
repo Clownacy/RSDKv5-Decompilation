@@ -276,7 +276,6 @@ void RSDK::LoadSceneFolder()
     }
 #endif
 }
-
 void RSDK::LoadSceneAssets()
 {
     memset(objectEntityList, 0, ENTITY_COUNT * sizeof(EntityBase));
