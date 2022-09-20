@@ -23,6 +23,25 @@ FileIO *fOpen(const char *path, const char *mode)
 
     return fopen(buffer, mode);
 }
+#elif RETRO_PLATFORM == RETRO_WIIU
+FileIO *fOpen(const char *path, const char *mode)
+{
+    // The current version of devkitPPC (r41-2) uses unbuffered file IO by default,
+    // which is extremely slow, so force buffered IO here.
+    FileIO *file = NULL;
+    FILE *fp = fopen(path, mode);
+
+    if (fp != NULL) {
+        setvbuf(fp, NULL, _IOFBF, BUFSIZ);
+
+        file = SDL_RWFromFP(fp, SDL_TRUE);
+
+        if (file == NULL)
+            fclose(fp);
+    }
+
+    return file;
+}
 #endif
 
 #if RETRO_REV0U

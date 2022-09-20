@@ -21,7 +21,7 @@
 #define fWrite(buffer, elementSize, elementCount, file) fwrite(buffer, elementSize, elementCount, file)
 #endif
 
-#if RETRO_PLATFORM == RETRO_ANDROID
+#if RETRO_PLATFORM == RETRO_ANDROID || RETRO_PLATFORM == RETRO_WIIU
 #undef fOpen
 FileIO *fOpen(const char *path, const char *mode);
 #endif
