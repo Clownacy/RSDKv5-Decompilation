@@ -200,69 +200,53 @@ inline uint8 ReadInt8(FileInfo *info)
 
 inline int16 ReadInt16(FileInfo *info)
 {
-    const unsigned int byte1 = ReadInt8(info);
-    const unsigned int byte2 = ReadInt8(info);
+    uint8 bytes[2];
+    ReadBytes(info, bytes, sizeof(bytes));
 
-    return (byte1 << (8 * 0)) |
-           (byte2 << (8 * 1));
+    return ((unsigned int)bytes[0] << (8 * 0)) |
+           ((unsigned int)bytes[1] << (8 * 1));
 }
 
 inline int32 ReadInt32(FileInfo *info, bool32 swapEndian)
 {
-    const unsigned long byte1 = ReadInt8(info);
-    const unsigned long byte2 = ReadInt8(info);
-    const unsigned long byte3 = ReadInt8(info);
-    const unsigned long byte4 = ReadInt8(info);
+    uint8 bytes[4];
+    ReadBytes(info, bytes, sizeof(bytes));
 
     if (swapEndian)
-        return (byte1 << (8 * 3)) |
-               (byte2 << (8 * 2)) |
-               (byte3 << (8 * 1)) |
-               (byte4 << (8 * 0));
+        return ((unsigned long)bytes[0] << (8 * 3)) |
+               ((unsigned long)bytes[1] << (8 * 2)) |
+               ((unsigned long)bytes[2] << (8 * 1)) |
+               ((unsigned long)bytes[3] << (8 * 0));
     else
-        return (byte1 << (8 * 0)) |
-               (byte2 << (8 * 1)) |
-               (byte3 << (8 * 2)) |
-               (byte4 << (8 * 3));
+        return ((unsigned long)bytes[0] << (8 * 0)) |
+               ((unsigned long)bytes[1] << (8 * 1)) |
+               ((unsigned long)bytes[2] << (8 * 2)) |
+               ((unsigned long)bytes[3] << (8 * 3));
 }
 
 inline int64 ReadInt64(FileInfo *info)
 {
-    const unsigned long long byte1 = ReadInt8(info);
-    const unsigned long long byte2 = ReadInt8(info);
-    const unsigned long long byte3 = ReadInt8(info);
-    const unsigned long long byte4 = ReadInt8(info);
-    const unsigned long long byte5 = ReadInt8(info);
-    const unsigned long long byte6 = ReadInt8(info);
-    const unsigned long long byte7 = ReadInt8(info);
-    const unsigned long long byte8 = ReadInt8(info);
+    uint8 bytes[8];
+    ReadBytes(info, bytes, sizeof(bytes));
 
-    return (byte1 << (8 * 0)) |
-           (byte2 << (8 * 1)) |
-           (byte3 << (8 * 2)) |
-           (byte4 << (8 * 3)) |
-           (byte5 << (8 * 4)) |
-           (byte6 << (8 * 5)) |
-           (byte7 << (8 * 6)) |
-           (byte8 << (8 * 7));
+    return ((unsigned long long)bytes[0] << (8 * 0)) |
+           ((unsigned long long)bytes[1] << (8 * 1)) |
+           ((unsigned long long)bytes[2] << (8 * 2)) |
+           ((unsigned long long)bytes[3] << (8 * 3)) |
+           ((unsigned long long)bytes[4] << (8 * 4)) |
+           ((unsigned long long)bytes[5] << (8 * 5)) |
+           ((unsigned long long)bytes[6] << (8 * 6)) |
+           ((unsigned long long)bytes[7] << (8 * 7));
 }
 
 inline float ReadSingle(FileInfo *info)
 {
     union {
         float result;
-	uint32 w;
+        uint32 w;
     } buffer;
 
-    const unsigned long byte1 = ReadInt8(info);
-    const unsigned long byte2 = ReadInt8(info);
-    const unsigned long byte3 = ReadInt8(info);
-    const unsigned long byte4 = ReadInt8(info);
-
-    buffer.w = (byte1 << (8 * 0)) |
-               (byte2 << (8 * 1)) |
-               (byte3 << (8 * 2)) |
-               (byte4 << (8 * 3));
+    buffer.w = ReadInt32(info, false);
 
     return buffer.result;
 }
