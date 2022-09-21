@@ -209,6 +209,12 @@ RSDK::SKU::InputDeviceSDL *RSDK::SKU::InitSDL2InputDevice(uint32 id, SDL_GameCon
             controllerType = DEVICE_XBOX;
         else if (strstr(name, "Playstation") || strstr(name, "PS3") || strstr(name, "PS4") || strstr(name, "PS5"))
             controllerType = DEVICE_PS4;
+        else if (strstr(name, "Wii U Gamepad")) {
+            controllerType   = DEVICE_SWITCH_HANDHELD;
+            device->swapABXY = true;
+        }
+        else if (strstr(name, "Wii Remote"))
+            controllerType = DEVICE_SWITCH_JOY_L;
         else if (strstr(name, "Switch") || strstr(name, "Wii U") || strstr(name, "Wii Classic Controller")) {
             controllerType   = DEVICE_SWITCH_PRO;
             device->swapABXY = true;
