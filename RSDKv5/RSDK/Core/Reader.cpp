@@ -367,8 +367,7 @@ void RSDK::GenerateELoadKeys(FileInfo *info, const char *key1, int32 key2)
     GEN_HASH_MD5(hashBuffer, hash);
 
     for (int32 i = 0; i < 4; ++i)
-        for (int32 j = 0; j < 4; ++j)
-            info->encryptionKeyA[i * 4 + j] = (hash[i] >> (8 * (j ^ 3))) & 0xFF;
+        for (int32 j = 0; j < 4; ++j) info->encryptionKeyA[i * 4 + j] = (hash[i] >> (8 * (j ^ 3))) & 0xFF;
 #else
     GEN_HASH_MD5(hashBuffer, (uint32 *)hash);
 
@@ -386,8 +385,7 @@ void RSDK::GenerateELoadKeys(FileInfo *info, const char *key1, int32 key2)
     GEN_HASH_MD5(hashBuffer, hash);
 
     for (int32 i = 0; i < 4; ++i)
-        for (int32 j = 0; j < 4; ++j)
-            info->encryptionKeyB[i * 4 + j] = (hash[i] >> (8 * (j ^ 3))) & 0xFF;
+        for (int32 j = 0; j < 4; ++j) info->encryptionKeyB[i * 4 + j] = (hash[i] >> (8 * (j ^ 3))) & 0xFF;
 #else
     GEN_HASH_MD5(hashBuffer, (uint32 *)hash);
 
