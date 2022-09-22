@@ -4,6 +4,8 @@
 #include "Legacy/Scene3DLegacy.cpp"
 #endif
 
+#include <algorithm>
+
 using namespace RSDK;
 
 Model RSDK::modelList[MODEL_COUNT];
@@ -816,7 +818,7 @@ void RSDK::AddMeshFrameToScene(uint16 modelFrames, uint16 sceneIndex, Animator *
         }
     }
 }
-
+/*
 void RSDK::Sort3DDrawList(Scene3D *scn, int32 first, int32 last)
 {
     if (first < last) {
@@ -842,7 +844,7 @@ void RSDK::Sort3DDrawList(Scene3D *scn, int32 first, int32 last)
         Sort3DDrawList(scn, j + 1, last);
     }
 }
-
+*/
 void RSDK::Draw3DScene(uint16 sceneID)
 {
     if (sceneID < SCENE3D_COUNT) {
@@ -883,7 +885,10 @@ void RSDK::Draw3DScene(uint16 sceneID)
             vertIndex += scn->faceVertCounts[i];
         }
 
-        Sort3DDrawList(scn, 0, scn->faceCount - 1);
+        //Sort3DDrawList(scn, 0, scn->faceCount - 1);
+        std::sort(&scn->faceBuffer[0], &scn->faceBuffer[scn->faceCount], [](Scene3DFace &a, Scene3DFace &b) {
+            return a.depth > b.depth;
+        });
 
         uint8 *vertCnt = scn->faceVertCounts;
         Vector2 vertPos[4];
