@@ -212,12 +212,18 @@ RSDK::SKU::InputDeviceSDL *RSDK::SKU::InitSDL2InputDevice(uint32 id, SDL_GameCon
         else if (strstr(name, "Wii U Gamepad")) {
             controllerType   = DEVICE_SWITCH_HANDHELD;
             device->swapABXY = true;
+#if RETRO_PLATFORM == RETRO_WIIU
+            engine.confirmFlip = true;
+#endif
         }
         else if (strstr(name, "Wii Remote"))
             controllerType = DEVICE_SWITCH_JOY_L;
         else if (strstr(name, "Switch") || strstr(name, "Wii U") || strstr(name, "Wii Classic Controller")) {
             controllerType   = DEVICE_SWITCH_PRO;
             device->swapABXY = true;
+#if RETRO_PLATFORM == RETRO_WIIU
+            engine.confirmFlip = true;
+#endif
         }
         else if (strstr(name, "Saturn"))
             controllerType = DEVICE_SATURN;
