@@ -48,10 +48,10 @@ target_include_directories(RSDKv5 PRIVATE
 	"../dependencies/all/tinyxml2"
 )
 
-target_compile_definitions(RSDKv5 PUBLIC # Public because the main function only exists if 'RETRO_STANDALONE' is 0.
+target_compile_definitions(RSDKv5 PUBLIC # Public because the game itself relies on RETRO_STANDALONE and RETRO_REVISION.
 	RETRO_STANDALONE=0
 	RSDK_USE_SDL2
-	RETRO_REVISION=3
+	RETRO_REVISION=2
 )
 
 if(RSDKv5_STATIC)
