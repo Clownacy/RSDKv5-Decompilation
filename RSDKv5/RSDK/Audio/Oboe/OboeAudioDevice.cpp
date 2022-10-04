@@ -19,7 +19,7 @@ bool32 AudioDevice::Init()
     oboe::AudioStreamBuilder builder;
 
     builder.setSampleRate(AUDIO_FREQUENCY)
-        ->setFormat(oboe::AudioFormat::Float)
+        ->setFormat(oboe::AudioFormat::I16)
         ->setChannelCount(AUDIO_CHANNELS)
         ->setBufferCapacityInFrames(MIX_BUFFER_SIZE)
         ->setPerformanceMode(oboe::PerformanceMode::LowLatency)
@@ -41,16 +41,11 @@ void AudioDevice::InitAudioChannels()
         channels[i].state   = CHANNEL_IDLE;
     }
 
-    for (int32 i = 0; i < 0x400; i += 2) {
-        speedMixAmounts[i]     = (i + 0) * (1.0f / 1024.0f);
-        speedMixAmounts[i + 1] = (i + 1) * (1.0f / 1024.0f);
-    }
-
     GEN_HASH_MD5("Stream Channel 0", sfxList[SFX_COUNT - 1].hash);
     sfxList[SFX_COUNT - 1].scope              = SCOPE_GLOBAL;
     sfxList[SFX_COUNT - 1].maxConcurrentPlays = 1;
     sfxList[SFX_COUNT - 1].length             = MIX_BUFFER_SIZE;
-    AllocateStorage((void **)&sfxList[SFX_COUNT - 1].buffer, MIX_BUFFER_SIZE * sizeof(SAMPLE_FORMAT), DATASET_MUS, false);
+    AllocateStorage((void **)&sfxList[SFX_COUNT - 1].buffer, MIX_BUFFER_SIZE * sizeof(int16), DATASET_MUS, false);
 
     pthread_mutex_init(&mutex, NULL);
     initializedAudioChannels = true;

@@ -28,12 +28,12 @@ bool32 AudioDevice::Init()
             if (SUCCEEDED(audioContext->CreateMasteringVoice(&masteringVoice, 0, 0, 0, NULL, NULL))) {
                 WAVEFORMATEX format;
                 format.cbSize          = 0;
-                format.wBitsPerSample  = sizeof(SAMPLE_FORMAT) * 8;
+                format.wBitsPerSample  = sizeof(int16) * 8;
                 format.nChannels       = AUDIO_CHANNELS;
                 format.nBlockAlign     = (format.nChannels * format.wBitsPerSample) / 8;
-                format.wFormatTag      = WAVE_FORMAT_IEEE_FLOAT;
+                format.wFormatTag      = WAVE_FORMAT_PCM;
                 format.nSamplesPerSec  = AUDIO_FREQUENCY;
-                format.nAvgBytesPerSec = 352800;
+                format.nAvgBytesPerSec = AUDIO_FREQUENCY * AUDIO_CHANNELS * sizeof(int16);
 
                 if (SUCCEEDED(audioContext->CreateSourceVoice(&sourceVoice, &format, 0, 2.0, &voiceCallback, NULL, NULL))) {
                     sourceVoice->Start(0, XAUDIO2_COMMIT_NOW);
@@ -162,16 +162,11 @@ void AudioDevice::InitAudioChannels()
         channels[i].state   = CHANNEL_IDLE;
     }
 
-    for (int32 i = 0; i < 0x400; i += 2) {
-        speedMixAmounts[i]     = (i + 0) * (1.0f / 1024.0f);
-        speedMixAmounts[i + 1] = (i + 1) * (1.0f / 1024.0f);
-    }
-
     GEN_HASH_MD5("Stream Channel 0", sfxList[SFX_COUNT - 1].hash);
     sfxList[SFX_COUNT - 1].scope              = SCOPE_GLOBAL;
     sfxList[SFX_COUNT - 1].maxConcurrentPlays = 1;
     sfxList[SFX_COUNT - 1].length             = MIX_BUFFER_SIZE;
-    AllocateStorage((void **)&sfxList[SFX_COUNT - 1].buffer, MIX_BUFFER_SIZE * sizeof(SAMPLE_FORMAT), DATASET_MUS, false);
+    AllocateStorage((void **)&sfxList[SFX_COUNT - 1].buffer, MIX_BUFFER_SIZE * sizeof(int16), DATASET_MUS, false);
 
     InitializeCriticalSection(&AudioDevice::criticalSection);
     initializedAudioChannels = true;
@@ -185,7 +180,7 @@ void AudioDevice::InitMixBuffer()
     memset(&buffer, 0, sizeof(buffer));
     buffer.pAudioData = (BYTE *)mixBuffer;
     buffer.pContext   = 0;
-    buffer.AudioBytes = MIX_BUFFER_SIZE * sizeof(SAMPLE_FORMAT);
+    buffer.AudioBytes = MIX_BUFFER_SIZE * sizeof(int16);
 
     AudioDevice::mixBufferID = ((AudioDevice::mixBufferID) + 1) % 3;
 
@@ -211,7 +206,7 @@ void AudioDeviceCallback::OnBufferEnd(void *pBufferContext)
         memset(&buffer, 0, sizeof(buffer));
         buffer.pAudioData = (BYTE *)mixBuffer;
         buffer.pContext   = 0;
-        buffer.AudioBytes = MIX_BUFFER_SIZE * sizeof(SAMPLE_FORMAT);
+        buffer.AudioBytes = MIX_BUFFER_SIZE * sizeof(int16);
 
         AudioDevice::mixBufferID = ((AudioDevice::mixBufferID) + 1) % 3;
 
