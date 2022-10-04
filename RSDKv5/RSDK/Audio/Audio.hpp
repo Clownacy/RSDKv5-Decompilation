@@ -7,15 +7,14 @@ namespace RSDK
 #define SFX_COUNT     (0x100)
 #define CHANNEL_COUNT (0x10)
 
-#define MIX_BUFFER_SIZE (0x800)
-#define SAMPLE_FORMAT   float
+#define MIX_BUFFER_SIZE (0x400)
 
 #define AUDIO_FREQUENCY (44100)
 #define AUDIO_CHANNELS  (2)
 
 struct SFXInfo {
     RETRO_HASH_MD5(hash);
-    float *buffer;
+    int16 *buffer;
     size_t length;
     int32 playCount;
     uint8 maxConcurrentPlays;
@@ -23,7 +22,7 @@ struct SFXInfo {
 };
 
 struct ChannelInfo {
-    float *samplePtr;
+    int16 *samplePtr;
     float pan;
     float volume;
     int32 speed;
@@ -58,7 +57,7 @@ public:
     static uint8 audioFocus;
 
     static int32 mixBufferID;
-    static SAMPLE_FORMAT mixBuffer[3][MIX_BUFFER_SIZE];
+    static int16 mixBuffer[3][MIX_BUFFER_SIZE];
 
 private:
     static void InitAudioChannels();

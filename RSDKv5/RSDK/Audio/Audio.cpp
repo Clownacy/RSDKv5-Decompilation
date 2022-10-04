@@ -20,7 +20,6 @@ static struct VorbisMetadata
 
 #define STB_VORBIS_NO_PUSHDATA_API
 #define STB_VORBIS_NO_STDIO
-#define STB_VORBIS_NO_INTEGER_CONVERSION
 #include "stb_vorbis/stb_vorbis.c"
 
 stb_vorbis *vorbisInfo = NULL;
@@ -38,8 +37,6 @@ uint8 *streamBuffer    = NULL;
 int32 streamBufferSize = 0;
 int32 streamStartPos   = 0;
 int32 streamLoopPoint  = 0;
-
-float speedMixAmounts[0x400];
 
 #ifdef RETRO_LIBVORBIS
 static size_t fread_wrapper(void *output, size_t size, size_t count, void *file)
@@ -125,14 +122,14 @@ uint8 AudioDeviceBase::audioState               = 0;
 uint8 AudioDeviceBase::audioFocus               = 0;
 
 int32 AudioDeviceBase::mixBufferID = 0;
-float AudioDeviceBase::mixBuffer[3][MIX_BUFFER_SIZE];
+int16 AudioDeviceBase::mixBuffer[3][MIX_BUFFER_SIZE];
 
 void AudioDeviceBase::ProcessAudioMixing(void *stream, int32 length)
 {
-    SAMPLE_FORMAT *streamF    = (SAMPLE_FORMAT *)stream;
-    SAMPLE_FORMAT *streamEndF = ((SAMPLE_FORMAT *)stream) + length;
+    int16 *streamF    = (int16 *)stream;
+    int16 *streamEndF = ((int16 *)stream) + length;
 
-    memset(stream, 0, length * sizeof(SAMPLE_FORMAT));
+    memset(stream, 0, length * sizeof(int16));
 
     for (int32 c = 0; c < CHANNEL_COUNT; ++c) {
         ChannelInfo *channel = &channels[c];
@@ -142,7 +139,7 @@ void AudioDeviceBase::ProcessAudioMixing(void *stream, int32 length)
             case CHANNEL_IDLE: break;
 
             case CHANNEL_SFX: {
-                SAMPLE_FORMAT *sfxBuffer = &channel->samplePtr[channel->bufferPos];
+                int16 *sfxBuffer = &channel->samplePtr[channel->bufferPos];
 
                 float volL = channel->volume, volR = channel->volume;
                 if (channel->pan < 0.0)
@@ -150,22 +147,22 @@ void AudioDeviceBase::ProcessAudioMixing(void *stream, int32 length)
                 else
                     volR = (1.0 - channel->pan) * channel->volume;
 
-                float panL = volL * engine.soundFXVolume;
-                float panR = volR * engine.soundFXVolume;
+                int32 panL = (int32)(volL * engine.soundFXVolume * 65536.0f);
+                int32 panR = (int32)(volR * engine.soundFXVolume * 65536.0f);
 
                 uint32 speedPercent       = 0;
-                SAMPLE_FORMAT *curStreamF = streamF;
+                int16 *curStreamF = streamF;
                 while (curStreamF < streamEndF && streamF < streamEndF) {
                     // Perform linear interpolation.
-                    SAMPLE_FORMAT sample = (sfxBuffer[1] - sfxBuffer[0]) * speedMixAmounts[speedPercent >> 6] + sfxBuffer[0];
+                    int16 sample = FROM_FIXED((sfxBuffer[1] - sfxBuffer[0]) * speedPercent) + sfxBuffer[0];
 
                     speedPercent += channel->speed;
                     sfxBuffer += FROM_FIXED(speedPercent);
                     channel->bufferPos += FROM_FIXED(speedPercent);
-                    speedPercent &= 0xFFFF;
+                    speedPercent %= TO_FIXED(1);
 
-                    curStreamF[0] += sample * panL;
-                    curStreamF[1] += sample * panR;
+                    curStreamF[0] += FROM_FIXED(sample * panL);
+                    curStreamF[1] += FROM_FIXED(sample * panR);
                     curStreamF += 2;
 
                     if (channel->bufferPos >= channel->sampleLength) {
@@ -187,7 +184,7 @@ void AudioDeviceBase::ProcessAudioMixing(void *stream, int32 length)
             }
 
             case CHANNEL_STREAM: {
-                SAMPLE_FORMAT *streamBuffer = &channel->samplePtr[channel->bufferPos];
+                int16 *streamBuffer = &channel->samplePtr[channel->bufferPos];
 
                 float volL = channel->volume, volR = channel->volume;
                 if (channel->pan < 0.0)
@@ -195,18 +192,18 @@ void AudioDeviceBase::ProcessAudioMixing(void *stream, int32 length)
                 else
                     volR = (1.0 - channel->pan) * channel->volume;
 
-                float panL = volL * engine.streamVolume;
-                float panR = volR * engine.streamVolume;
+                int32 panL = (int32)(volL * engine.soundFXVolume * 65536.0f);
+                int32 panR = (int32)(volR * engine.soundFXVolume * 65536.0f);
 
                 uint32 speedPercent       = 0;
-                SAMPLE_FORMAT *curStreamF = streamF;
+                int16 *curStreamF = streamF;
                 while (curStreamF < streamEndF && streamF < streamEndF) {
                     speedPercent += channel->speed;
                     int32 next = FROM_FIXED(speedPercent);
-                    speedPercent &= 0xFFFF;
+                    speedPercent %= TO_FIXED(1);
 
-                    curStreamF[0] += panL * streamBuffer[0];
-                    curStreamF[1] += panR * streamBuffer[1];
+                    curStreamF[0] += FROM_FIXED(streamBuffer[0] * panL);
+                    curStreamF[1] += FROM_FIXED(streamBuffer[1] * panR);
                     curStreamF += 2;
 
                     streamBuffer += next * 2;
@@ -230,10 +227,10 @@ void AudioDeviceBase::ProcessAudioMixing(void *stream, int32 length)
 
 void RSDK::UpdateStreamBuffer(ChannelInfo *channel)
 {
-    int32 bufferRemaining = 0x800;
-    float *buffer         = channel->samplePtr;
+    int32 bufferRemaining = MIX_BUFFER_SIZE;
+    int16 *buffer         = channel->samplePtr;
 
-    for (int32 s = 0; s < 0x800;) {
+    for (int32 s = 0; s < MIX_BUFFER_SIZE;) {
 #ifdef RETRO_LIBVORBIS
 	float **float_buffer;
 	int32 samples = ov_read_float(&vorbisMetadata.file, &float_buffer, bufferRemaining / 2, NULL) * 2;
@@ -242,7 +239,7 @@ void RSDK::UpdateStreamBuffer(ChannelInfo *channel)
 		for (int32 j = 0; j < 2; ++j)
 			buffer[i * 2 + j] = float_buffer[j][i];
 #else
-        int32 samples = stb_vorbis_get_samples_float_interleaved(vorbisInfo, 2, buffer, bufferRemaining) * 2;
+        int32 samples = stb_vorbis_get_samples_short_interleaved(vorbisInfo, 2, buffer, bufferRemaining) * 2;
 #endif
         if (!samples) {
             if (channel->loop == 1 &&
@@ -257,7 +254,7 @@ void RSDK::UpdateStreamBuffer(ChannelInfo *channel)
             else {
                 channel->state   = CHANNEL_IDLE;
                 channel->soundID = -1;
-                memset(buffer, 0, sizeof(float) * bufferRemaining);
+                memset(buffer, 0, sizeof(int16) * bufferRemaining);
 
                 break;
             }
@@ -265,16 +262,16 @@ void RSDK::UpdateStreamBuffer(ChannelInfo *channel)
 
         s += samples;
         buffer += samples;
-        bufferRemaining = 0x800 - s;
+        bufferRemaining = MIX_BUFFER_SIZE - s;
     }
 
-    for (int32 i = 0; i < 0x800; i += 4) {
-        float *sampleBuffer = &channel->samplePtr[i];
+    for (int32 i = 0; i < MIX_BUFFER_SIZE; i += 4) {
+        int16 *sampleBuffer = &channel->samplePtr[i];
 
-        sampleBuffer[0] = sampleBuffer[0] * 0.5;
-        sampleBuffer[1] = sampleBuffer[1] * 0.5;
-        sampleBuffer[2] = sampleBuffer[2] * 0.5;
-        sampleBuffer[3] = sampleBuffer[3] * 0.5;
+        sampleBuffer[0] = sampleBuffer[0] / 2;
+        sampleBuffer[1] = sampleBuffer[1] / 2;
+        sampleBuffer[2] = sampleBuffer[2] / 2;
+        sampleBuffer[3] = sampleBuffer[3] / 2;
     }
 }
 
@@ -465,23 +462,21 @@ void RSDK::LoadSfxToSlot(char *filename, uint8 slot, uint8 plays, uint8 scope)
                 if (sampleBits == 16)
                     length /= 2;
 
-                AllocateStorage((void **)&sfxList[slot].buffer, sizeof(float) * length, DATASET_SFX, false);
+                AllocateStorage((void **)&sfxList[slot].buffer, sizeof(int16) * length, DATASET_SFX, false);
                 sfxList[slot].length = length;
 
-                // Convert the sample data to F32 format
-                float *buffer = (float *)sfxList[slot].buffer;
+                // Convert the sample data to S16 format
+                int16 *buffer = (int16 *)sfxList[slot].buffer;
                 if (sampleBits == 8) {
-                    for (int32 s = 0; s < length; ++s) {
-                        int32 sample = ReadInt8(&info);
-                        *buffer++    = (sample - 128) * 0.0078125; // 0.0078125 == 128.0
-                    }
+                    for (int32 s = 0; s < length; ++s)
+                        *buffer++ = ((int32)ReadInt8(&info) - 0x80) * (1 << 8);
                 }
                 else {
                     for (int32 s = 0; s < length; ++s) {
                         int32 sample = ReadInt16(&info);
                         if (sample > 0x7FFF)
                             sample = (sample & 0x7FFF) - 0x8000;
-                        *buffer++ = (sample * 0.000030518) * 0.75; // 0.000030518 == 32,767.5
+                        *buffer++ = (sample * 3) / 4;
                     }
                 }
             }

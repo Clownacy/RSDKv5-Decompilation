@@ -31,7 +31,7 @@ bool32 RSDK::InitStorage()
     // Storage limits.
     dataStorage[DATASET_STG].storageLimit = 24 * 1024 * 1024; // 24MB
     dataStorage[DATASET_MUS].storageLimit = 8 * 1024 * 1024;  //  8MB
-    dataStorage[DATASET_SFX].storageLimit = 32 * 1024 * 1024; // 32MB
+    dataStorage[DATASET_SFX].storageLimit = 16 * 1024 * 1024; // 16MB
     dataStorage[DATASET_STR].storageLimit = 2 * 1024 * 1024;  //  2MB
     dataStorage[DATASET_TMP].storageLimit = 8 * 1024 * 1024;  //  8MB
 
