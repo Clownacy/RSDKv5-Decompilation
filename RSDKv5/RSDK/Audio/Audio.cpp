@@ -123,105 +123,116 @@ uint8 AudioDeviceBase::audioFocus               = 0;
 
 int32 AudioDeviceBase::mixBufferID = 0;
 int16 AudioDeviceBase::mixBuffer[3][MIX_BUFFER_SIZE];
+int32 AudioDeviceBase::clampBuffer[MIX_BUFFER_SIZE];
 
 void AudioDeviceBase::ProcessAudioMixing(void *stream, int32 length)
 {
-    int16 *streamF    = (int16 *)stream;
-    int16 *streamEndF = ((int16 *)stream) + length;
+    int16 *outputPointer = (int16 *)stream;
 
-    memset(stream, 0, length * sizeof(int16));
+    for (int32 samplesRemaining = length, samplesToDo; samplesRemaining; samplesRemaining -= samplesToDo)
+    {
+	samplesToDo = MIN(MIX_BUFFER_SIZE, samplesRemaining);
 
-    for (int32 c = 0; c < CHANNEL_COUNT; ++c) {
-        ChannelInfo *channel = &channels[c];
+        int32 *streamF    = clampBuffer;
+        int32 *streamEndF = clampBuffer + samplesToDo;
 
-        switch (channel->state) {
-            default:
-            case CHANNEL_IDLE: break;
+        memset(clampBuffer, 0, samplesToDo * sizeof(int32));
 
-            case CHANNEL_SFX: {
-                int16 *sfxBuffer = &channel->samplePtr[channel->bufferPos];
+        for (int32 c = 0; c < CHANNEL_COUNT; ++c) {
+            ChannelInfo *channel = &channels[c];
 
-                float volL = channel->volume, volR = channel->volume;
-                if (channel->pan < 0.0)
-                    volL = (1.0 + channel->pan) * channel->volume;
-                else
-                    volR = (1.0 - channel->pan) * channel->volume;
+            switch (channel->state) {
+                default:
+                case CHANNEL_IDLE: break;
 
-                int32 panL = (int32)(volL * engine.soundFXVolume * 65536.0f);
-                int32 panR = (int32)(volR * engine.soundFXVolume * 65536.0f);
+                case CHANNEL_SFX: {
+                    int16 *sfxBuffer = &channel->samplePtr[channel->bufferPos];
 
-                uint32 speedPercent       = 0;
-                int16 *curStreamF = streamF;
-                while (curStreamF < streamEndF && streamF < streamEndF) {
-                    // Perform linear interpolation.
-                    int16 sample = FROM_FIXED((sfxBuffer[1] - sfxBuffer[0]) * speedPercent) + sfxBuffer[0];
+                    float volL = channel->volume, volR = channel->volume;
+                    if (channel->pan < 0.0)
+                        volL = (1.0 + channel->pan) * channel->volume;
+                    else
+                        volR = (1.0 - channel->pan) * channel->volume;
 
-                    speedPercent += channel->speed;
-                    sfxBuffer += FROM_FIXED(speedPercent);
-                    channel->bufferPos += FROM_FIXED(speedPercent);
-                    speedPercent %= TO_FIXED(1);
+                    int32 panL = (int32)(volL * engine.soundFXVolume * 65536.0f);
+                    int32 panR = (int32)(volR * engine.soundFXVolume * 65536.0f);
 
-                    curStreamF[0] += FROM_FIXED(sample * panL);
-                    curStreamF[1] += FROM_FIXED(sample * panR);
-                    curStreamF += 2;
+                    uint32 speedPercent       = 0;
+                    int32 *curStreamF = streamF;
+                    while (curStreamF < streamEndF && streamF < streamEndF) {
+                        // Perform linear interpolation.
+                        int16 sample = FROM_FIXED((sfxBuffer[1] - sfxBuffer[0]) * speedPercent) + sfxBuffer[0];
 
-                    if (channel->bufferPos >= channel->sampleLength) {
-                        if (channel->loop == 0xFFFFFFFF) {
-                            channel->state   = CHANNEL_IDLE;
-                            channel->soundID = -1;
-                            break;
+                        speedPercent += channel->speed;
+                        sfxBuffer += FROM_FIXED(speedPercent);
+                        channel->bufferPos += FROM_FIXED(speedPercent);
+                        speedPercent %= TO_FIXED(1);
+
+                        curStreamF[0] += FROM_FIXED(sample * panL);
+                        curStreamF[1] += FROM_FIXED(sample * panR);
+                        curStreamF += 2;
+
+                        if (channel->bufferPos >= channel->sampleLength) {
+                            if (channel->loop == 0xFFFFFFFF) {
+                                channel->state   = CHANNEL_IDLE;
+                                channel->soundID = -1;
+                                break;
+                            }
+                            else {
+                                channel->bufferPos -= channel->sampleLength;
+                                channel->bufferPos += channel->loop;
+
+                                sfxBuffer = &channel->samplePtr[channel->bufferPos];
+                            }
                         }
-                        else {
+                    }
+
+                    break;
+                }
+
+                case CHANNEL_STREAM: {
+                    int16 *streamBuffer = &channel->samplePtr[channel->bufferPos];
+
+                    float volL = channel->volume, volR = channel->volume;
+                    if (channel->pan < 0.0)
+                        volL = (1.0 + channel->pan) * channel->volume;
+                    else
+                        volR = (1.0 - channel->pan) * channel->volume;
+
+                    int32 panL = (int32)(volL * engine.soundFXVolume * 65536.0f);
+                    int32 panR = (int32)(volR * engine.soundFXVolume * 65536.0f);
+
+                    uint32 speedPercent       = 0;
+                    int32 *curStreamF = streamF;
+                    while (curStreamF < streamEndF && streamF < streamEndF) {
+                        speedPercent += channel->speed;
+                        int32 next = FROM_FIXED(speedPercent);
+                        speedPercent %= TO_FIXED(1);
+
+                        curStreamF[0] += FROM_FIXED(streamBuffer[0] * panL);
+                        curStreamF[1] += FROM_FIXED(streamBuffer[1] * panR);
+                        curStreamF += 2;
+
+                        streamBuffer += next * 2;
+                        channel->bufferPos += next * 2;
+
+                        if (channel->bufferPos >= channel->sampleLength) {
                             channel->bufferPos -= channel->sampleLength;
-                            channel->bufferPos += channel->loop;
 
-                            sfxBuffer = &channel->samplePtr[channel->bufferPos];
+                            streamBuffer = &channel->samplePtr[channel->bufferPos];
+
+                            UpdateStreamBuffer(channel);
                         }
                     }
+                    break;
                 }
 
-                break;
+                case CHANNEL_LOADING_STREAM: break;
             }
-
-            case CHANNEL_STREAM: {
-                int16 *streamBuffer = &channel->samplePtr[channel->bufferPos];
-
-                float volL = channel->volume, volR = channel->volume;
-                if (channel->pan < 0.0)
-                    volL = (1.0 + channel->pan) * channel->volume;
-                else
-                    volR = (1.0 - channel->pan) * channel->volume;
-
-                int32 panL = (int32)(volL * engine.soundFXVolume * 65536.0f);
-                int32 panR = (int32)(volR * engine.soundFXVolume * 65536.0f);
-
-                uint32 speedPercent       = 0;
-                int16 *curStreamF = streamF;
-                while (curStreamF < streamEndF && streamF < streamEndF) {
-                    speedPercent += channel->speed;
-                    int32 next = FROM_FIXED(speedPercent);
-                    speedPercent %= TO_FIXED(1);
-
-                    curStreamF[0] += FROM_FIXED(streamBuffer[0] * panL);
-                    curStreamF[1] += FROM_FIXED(streamBuffer[1] * panR);
-                    curStreamF += 2;
-
-                    streamBuffer += next * 2;
-                    channel->bufferPos += next * 2;
-
-                    if (channel->bufferPos >= channel->sampleLength) {
-                        channel->bufferPos -= channel->sampleLength;
-
-                        streamBuffer = &channel->samplePtr[channel->bufferPos];
-
-                        UpdateStreamBuffer(channel);
-                    }
-                }
-                break;
-            }
-
-            case CHANNEL_LOADING_STREAM: break;
         }
+
+        for (int32 i = 0; i < samplesToDo; ++i)
+            *outputPointer++ = CLAMP(clampBuffer[i], -0x7FFF, 0x7FFF);
     }
 }
 
