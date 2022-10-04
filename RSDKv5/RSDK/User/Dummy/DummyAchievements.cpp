@@ -27,6 +27,7 @@ void DummyAchievements::TryUnlockAchievement(AchievementID *id)
     }
 }
 
+#if RETRO_VER_EGS || RETRO_USE_DUMMY_ACHIEVEMENTS
 void DummyAchievements::SetAchievementNames(String **names, int32 count)
 {
     if (count <= 0)
@@ -68,4 +69,5 @@ void DummyAchievements::RemoveLastAchievementID()
     if (achievementStack.size() > 0)
         achievementStack.erase(achievementStack.begin());
 }
+#endif
 #endif
