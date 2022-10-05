@@ -199,8 +199,8 @@ void AudioDeviceBase::ProcessAudioMixing(void *stream, int32 length)
                     else
                         volR = (1.0 - channel->pan) * channel->volume;
 
-                    int32 panL = (int32)(volL * engine.soundFXVolume * 65536.0f);
-                    int32 panR = (int32)(volR * engine.soundFXVolume * 65536.0f);
+                    int32 panL = (int32)(volL * engine.streamVolume * 65536.0f);
+                    int32 panR = (int32)(volR * engine.streamVolume * 65536.0f);
 
                     uint32 speedPercent       = 0;
                     int32 *curStreamF = streamF;
