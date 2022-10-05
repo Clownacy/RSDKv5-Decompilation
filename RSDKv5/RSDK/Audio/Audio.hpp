@@ -7,7 +7,7 @@ namespace RSDK
 #define SFX_COUNT     (0x100)
 #define CHANNEL_COUNT (0x10)
 
-#define MIX_BUFFER_SIZE (0x400)
+#define MIX_BUFFER_SIZE (0x800)
 
 #define AUDIO_FREQUENCY (44100)
 #define AUDIO_CHANNELS  (2)
