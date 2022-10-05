@@ -129,7 +129,7 @@ void AudioDeviceBase::ProcessAudioMixing(void *stream, int32 length)
 {
     int16 *outputPointer = (int16 *)stream;
 
-    for (int32 samplesRemaining = length, samplesToDo; samplesRemaining; samplesRemaining -= samplesToDo)
+    for (int32 samplesRemaining = length, samplesToDo; samplesRemaining != 0; samplesRemaining -= samplesToDo)
     {
         samplesToDo = MIN(MIX_BUFFER_SIZE, samplesRemaining);
 
@@ -232,7 +232,7 @@ void AudioDeviceBase::ProcessAudioMixing(void *stream, int32 length)
         }
 
         for (int32 i = 0; i < samplesToDo; ++i)
-            *outputPointer++ = CLAMP(clampBuffer[i], -0x7FFF, 0x7FFF);
+            *outputPointer++ = (int16)CLAMP(clampBuffer[i], -0x7FFF, 0x7FFF);
     }
 }
 
