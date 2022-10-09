@@ -35,6 +35,11 @@ bool32 RSDK::InitStorage()
     dataStorage[DATASET_STR].storageLimit = 2 * 1024 * 1024;  //  2MB
     dataStorage[DATASET_TMP].storageLimit = 8 * 1024 * 1024;  //  8MB
 
+#ifdef RSDKv5_USE_LIBVORBIS
+    // stb_vorbis needs an extra 512KiB, but libvorbis doesn't.
+    dataStorage[DATASET_MUS].storageLimit -= 512 * 1024; // 512KiB
+#endif
+
     for (int32 s = 0; s < DATASET_MAX; ++s) {
         dataStorage[s].usedStorage = 0;
         dataStorage[s].entryCount  = 0;
