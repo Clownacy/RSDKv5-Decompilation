@@ -1548,6 +1548,14 @@ void RenderDevice::ProcessEvent(MSG Msg)
                     break;
 
 #if !RETRO_USE_ORIGINAL_CODE
+                case VK_F4:
+                    if (engine.devMenu) {
+                        engine.showEntityInfo ^= 1;
+
+                        handledMsg = true;
+                    }
+                    break;
+
                 case VK_F5:
                     if (engine.devMenu) {
                         // Quick-Reload
@@ -1575,9 +1583,20 @@ void RenderDevice::ProcessEvent(MSG Msg)
                         videoSettings.screenCount++;
                     break;
 
+                case VK_F8:
+                    if (engine.devMenu) {
+                        engine.showUpdateRanges ^= 1;
+
+                        handledMsg = true;
+                    }
+                    break;
+
                 case VK_F9:
-                    if (engine.devMenu)
+                    if (engine.devMenu) {
                         showHitboxes ^= 1;
+
+                        handledMsg = true;
+                    }
                     break;
 
                 case VK_F10:
@@ -1624,12 +1643,12 @@ void RenderDevice::ProcessEvent(MSG Msg)
         case WM_SYSKEYUP: {
             WPARAM activeButtons = Msg.wParam;
             switch (Msg.wParam) {
-                case VK_SHIFT: activeButtons = MapVirtualKey(((Msg.lParam >> 8) & 0xFF), MAPVK_VSC_TO_VK_EX); break;
+                case VK_SHIFT: activeButtons = MapVirtualKey(((Msg.lParam >> 16) & 0xFF), MAPVK_VSC_TO_VK_EX); break;
 
-                case VK_CONTROL: activeButtons = VK_LCONTROL + ((Msg.lParam >> 8) & 1); break;
+                case VK_CONTROL: activeButtons = VK_LCONTROL + ((Msg.lParam >> 24) & 1); break;
 
                 case VK_MENU: // ALT key
-                    activeButtons = VK_LMENU + ((Msg.lParam >> 8) & 1);
+                    activeButtons = VK_LMENU + ((Msg.lParam >> 24) & 1);
                     break;
             }
 
