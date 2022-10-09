@@ -56,13 +56,10 @@ public:
     static uint8 audioState;
     static uint8 audioFocus;
 
-    static int32 mixBufferID;
-    static int16 mixBuffer[3][MIX_BUFFER_SIZE];
     static int32 clampBuffer[MIX_BUFFER_SIZE];
 
-private:
+protected:
     static void InitAudioChannels();
-    static void InitMixBuffer();
 };
 
 void UpdateStreamBuffer(ChannelInfo *channel);

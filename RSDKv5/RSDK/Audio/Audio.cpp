@@ -92,21 +92,6 @@ static const ov_callbacks vorbisCallbacks = {
 };
 #endif
 
-static inline void UnloadStream()
-{
-#ifdef RSDKv5_USE_LIBVORBIS
-    ov_clear(&vorbisMetadata.file);
-#else
-    stb_vorbis_close(vorbisInfo);
-//    if (vorbisInfo) {
-//        vorbis_deinit(vorbisInfo);
-//        if (!vorbisInfo->alloc.alloc_buffer)
-//            free(vorbisInfo);
-//    }
-    vorbisInfo = NULL;
-#endif
-}
-
 #if RETRO_AUDIODEVICE_XAUDIO
 #include "XAudio/XAudioDevice.cpp"
 #elif RETRO_AUDIODEVICE_NX
@@ -121,9 +106,23 @@ uint8 AudioDeviceBase::initializedAudioChannels = false;
 uint8 AudioDeviceBase::audioState               = 0;
 uint8 AudioDeviceBase::audioFocus               = 0;
 
-int32 AudioDeviceBase::mixBufferID = 0;
-int16 AudioDeviceBase::mixBuffer[3][MIX_BUFFER_SIZE];
 int32 AudioDeviceBase::clampBuffer[MIX_BUFFER_SIZE];
+void AudioDeviceBase::Release()
+{
+#ifdef RSDKv5_USE_LIBVORBIS
+    ov_clear(&vorbisMetadata.file);
+#else
+    // as far as I know, this isn't in the original which means it'd memleak right?
+#if !RETRO_USE_ORIGINAL_CODE
+    if (vorbisInfo) {
+        vorbis_deinit(vorbisInfo);
+        if (!vorbisInfo->alloc.alloc_buffer)
+            free(vorbisInfo);
+    }
+    vorbisInfo = NULL;
+#endif
+#endif
+}
 
 void AudioDeviceBase::ProcessAudioMixing(void *stream, int32 length)
 {
@@ -236,6 +235,22 @@ void AudioDeviceBase::ProcessAudioMixing(void *stream, int32 length)
     }
 }
 
+void AudioDeviceBase::InitAudioChannels()
+{
+    for (int32 i = 0; i < CHANNEL_COUNT; ++i) {
+        channels[i].soundID = -1;
+        channels[i].state   = CHANNEL_IDLE;
+    }
+
+    GEN_HASH_MD5("Stream Channel 0", sfxList[SFX_COUNT - 1].hash);
+    sfxList[SFX_COUNT - 1].scope              = SCOPE_GLOBAL;
+    sfxList[SFX_COUNT - 1].maxConcurrentPlays = 1;
+    sfxList[SFX_COUNT - 1].length             = MIX_BUFFER_SIZE;
+    AllocateStorage((void **)&sfxList[SFX_COUNT - 1].buffer, MIX_BUFFER_SIZE * sizeof(int16), DATASET_MUS, false);
+
+    initializedAudioChannels = true;
+}
+
 #ifdef RSDKv5_USE_LIBVORBIS
 static inline bool32 IsBigEndian(void)
 {
@@ -331,7 +346,7 @@ void RSDK::LoadStream(ChannelInfo *channel)
             if (ov_open_callbacks(&vorbisMetadata, &vorbisMetadata.file, NULL, 0, vorbisCallbacks) == 0) {
 #else
             vorbisAlloc.alloc_buffer_length_in_bytes = 0x80000;
-            AllocateStorage((void **)&vorbisAlloc, 0x80000, DATASET_MUS, false);
+            AllocateStorage((void **)&vorbisAlloc.alloc_buffer, 0x80000, DATASET_MUS, false);
 
             vorbisInfo = stb_vorbis_open_memory(streamBuffer, streamBufferSize, NULL, &vorbisAlloc);
             if (vorbisInfo) {
