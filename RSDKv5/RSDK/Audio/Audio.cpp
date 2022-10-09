@@ -112,13 +112,9 @@ void AudioDeviceBase::Release()
 #ifdef RSDKv5_USE_LIBVORBIS
     ov_clear(&vorbisMetadata.file);
 #else
-    // as far as I know, this isn't in the original which means it'd memleak right?
+    // This is missing, meaning that the garbage collector will never reclaim stb_vorbis's buffer.
 #if !RETRO_USE_ORIGINAL_CODE
-    if (vorbisInfo) {
-        vorbis_deinit(vorbisInfo);
-        if (!vorbisInfo->alloc.alloc_buffer)
-            free(vorbisInfo);
-    }
+    stb_vorbis_close(vorbisInfo);
     vorbisInfo = NULL;
 #endif
 #endif
@@ -314,11 +310,6 @@ void RSDK::LoadStream(ChannelInfo *channel)
     ov_clear(&vorbisMetadata.file);
 #else
     stb_vorbis_close(vorbisInfo);
-//    if (vorbisInfo) {
-//        vorbis_deinit(vorbisInfo);
-//        if (!vorbisInfo->alloc.alloc_buffer)
-//            free(vorbisInfo);
-//    }
 #endif
 
     FileInfo info;
