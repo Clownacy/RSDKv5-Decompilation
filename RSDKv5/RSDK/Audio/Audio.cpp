@@ -148,10 +148,10 @@ void AudioDeviceBase::ProcessAudioMixing(void *stream, int32 length)
                     int16 *sfxBuffer = &channel->samplePtr[channel->bufferPos];
 
                     float volL = channel->volume, volR = channel->volume;
-                    if (channel->pan < 0.0)
-                        volL = (1.0 + channel->pan) * channel->volume;
+                    if (channel->pan < 0.0f)
+                        volR = (1.0f + channel->pan) * channel->volume;
                     else
-                        volR = (1.0 - channel->pan) * channel->volume;
+                        volL = (1.0f - channel->pan) * channel->volume;
 
                     int32 panL = (int32)(volL * engine.soundFXVolume * 65536.0f);
                     int32 panR = (int32)(volR * engine.soundFXVolume * 65536.0f);
@@ -172,7 +172,7 @@ void AudioDeviceBase::ProcessAudioMixing(void *stream, int32 length)
                         curStreamF += 2;
 
                         if (channel->bufferPos >= channel->sampleLength) {
-                            if (channel->loop == 0xFFFFFFFF) {
+                            if (channel->loop == -1) {
                                 channel->state   = CHANNEL_IDLE;
                                 channel->soundID = -1;
                                 break;
@@ -193,10 +193,10 @@ void AudioDeviceBase::ProcessAudioMixing(void *stream, int32 length)
                     int16 *streamBuffer = &channel->samplePtr[channel->bufferPos];
 
                     float volL = channel->volume, volR = channel->volume;
-                    if (channel->pan < 0.0)
-                        volL = (1.0 + channel->pan) * channel->volume;
+                    if (channel->pan < 0.0f)
+                        volR = (1.0f + channel->pan) * channel->volume;
                     else
-                        volR = (1.0 - channel->pan) * channel->volume;
+                        volL = (1.0f - channel->pan) * channel->volume;
 
                     int32 panL = (int32)(volL * engine.streamVolume * 65536.0f);
                     int32 panR = (int32)(volR * engine.streamVolume * 65536.0f);
@@ -301,14 +301,8 @@ void RSDK::UpdateStreamBuffer(ChannelInfo *channel)
         bufferRemaining = MIX_BUFFER_SIZE - s;
     }
 
-    for (int32 i = 0; i < MIX_BUFFER_SIZE; i += 4) {
-        int16 *sampleBuffer = &channel->samplePtr[i];
-
-        sampleBuffer[0] = sampleBuffer[0] / 2;
-        sampleBuffer[1] = sampleBuffer[1] / 2;
-        sampleBuffer[2] = sampleBuffer[2] / 2;
-        sampleBuffer[3] = sampleBuffer[3] / 2;
-    }
+    for (int32 i = 0; i < MIX_BUFFER_SIZE; ++i)
+        channel->samplePtr[i] /= 2;
 }
 
 void RSDK::LoadStream(ChannelInfo *channel)
@@ -345,8 +339,8 @@ void RSDK::LoadStream(ChannelInfo *channel)
 
             if (ov_open_callbacks(&vorbisMetadata, &vorbisMetadata.file, NULL, 0, vorbisCallbacks) == 0) {
 #else
-            vorbisAlloc.alloc_buffer_length_in_bytes = 0x80000;
-            AllocateStorage((void **)&vorbisAlloc.alloc_buffer, 0x80000, DATASET_MUS, false);
+            vorbisAlloc.alloc_buffer_length_in_bytes = 512 * 1024; // 512KiB
+            AllocateStorage((void **)&vorbisAlloc.alloc_buffer, 512 * 1024, DATASET_MUS, false);
 
             vorbisInfo = stb_vorbis_open_memory(streamBuffer, streamBufferSize, NULL, &vorbisAlloc);
             if (vorbisInfo) {
@@ -404,8 +398,8 @@ int32 RSDK::PlayStream(const char *filename, uint32 slot, int32 startPos, uint32
     channel->loop         = loopPoint != 0;
     channel->priority     = 0xFF;
     channel->state        = CHANNEL_LOADING_STREAM;
-    channel->pan          = 0.0;
-    channel->volume       = 1.0;
+    channel->pan          = 0.0f;
+    channel->volume       = 1.0f;
     channel->sampleLength = sfxList[SFX_COUNT - 1].length;
     channel->samplePtr    = sfxList[SFX_COUNT - 1].buffer;
     channel->bufferPos    = 0;
@@ -504,14 +498,20 @@ void RSDK::LoadSfxToSlot(char *filename, uint8 slot, uint8 plays, uint8 scope)
                 // Convert the sample data to S16 format
                 int16 *buffer = (int16 *)sfxList[slot].buffer;
                 if (sampleBits == 8) {
+                    // 8-bit sample. Convert from U8 to S8, and then from S8 to S16.
                     for (int32 s = 0; s < length; ++s)
                         *buffer++ = ((int32)ReadInt8(&info) - 0x80) * (1 << 8);
                 }
                 else {
+                    // 16-bit sample.
                     for (int32 s = 0; s < length; ++s) {
-                        int32 sample = ReadInt16(&info);
+                        // For some reason, the game performs sign-extension manually here.
+                        // Note that this is different from the 8-bit format's unsigned-to-signed conversion.
+                        int32 sample = (uint16)ReadInt16(&info);
+
                         if (sample > 0x7FFF)
                             sample = (sample & 0x7FFF) - 0x8000;
+
                         *buffer++ = (sample * 3) / 4;
                     }
                 }
@@ -605,8 +605,8 @@ int32 RSDK::PlaySfx(uint16 sfx, uint32 loopPoint, uint32 priority)
     channels[slot].bufferPos    = 0;
     channels[slot].samplePtr    = sfxList[sfx].buffer;
     channels[slot].sampleLength = sfxList[sfx].length;
-    channels[slot].volume       = 1.0;
-    channels[slot].pan          = 0.0;
+    channels[slot].volume       = 1.0f;
+    channels[slot].pan          = 0.0f;
     channels[slot].speed        = TO_FIXED(1);
     channels[slot].soundID      = sfx;
     if (loopPoint >= 2)
@@ -624,17 +624,17 @@ int32 RSDK::PlaySfx(uint16 sfx, uint32 loopPoint, uint32 priority)
 void RSDK::SetChannelAttributes(uint8 channel, float volume, float panning, float speed)
 {
     if (channel < CHANNEL_COUNT) {
-        volume                   = fminf(4.0, volume);
-        volume                   = fmaxf(0.0, volume);
+        volume                   = fminf(4.0f, volume);
+        volume                   = fmaxf(0.0f, volume);
         channels[channel].volume = volume;
 
-        panning               = fminf(1.0, panning);
+        panning               = fminf(1.0f, panning);
         panning               = fmaxf(-1.0f, panning);
         channels[channel].pan = panning;
 
-        if (speed > 0.0)
-            channels[channel].speed = (int32)(speed * 65536.0f);
-        else if (speed == 1.0)
+        if (speed > 0.0f)
+            channels[channel].speed = (int32)(speed * TO_FIXED(1));
+        else if (speed == 1.0f)
             channels[channel].speed = TO_FIXED(1);
     }
 }
@@ -665,10 +665,10 @@ double RSDK::GetVideoStreamPos()
 {
     if (channels[0].state == CHANNEL_STREAM && AudioDevice::audioState && AudioDevice::initializedAudioChannels)
 #ifdef RSDKv5_USE_LIBVORBIS
-        return ov_pcm_tell(&vorbisMetadata.file) / (float)AUDIO_FREQUENCY;
+        return ov_pcm_tell(&vorbisMetadata.file) / (double)AUDIO_FREQUENCY;
 #else
         if (vorbisInfo->current_loc_valid)
-            return vorbisInfo->current_loc / (float)AUDIO_FREQUENCY;
+            return vorbisInfo->current_loc / (double)AUDIO_FREQUENCY;
 #endif
 
     return -1.0;
