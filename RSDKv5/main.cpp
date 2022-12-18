@@ -36,11 +36,26 @@ void android_main(struct android_app *ap)
     JNISetup *jni = GetJNISetup();
     // we make sure we do it here so init can chill safely before any callbacks occur
     Paddleboat_init(jni->env, jni->thiz);
-    char buffer[0x200];
-    jmethodID method = jni->env->GetMethodID(jni->clazz, "getBasePath", "()Ljava/lang/String;");
-    auto ret         = jni->env->CallObjectMethod(jni->thiz, method);
-    strcpy(buffer, jni->env->GetStringUTFChars((jstring)ret, NULL));
-    RSDK::SKU::SetUserFileCallbacks(buffer, NULL, NULL);
+
+    SwappyGL_init(jni->env, jni->thiz);
+    SwappyGL_setSwapIntervalNS(SWAPPY_SWAP_60FPS);
+    SwappyGL_setAutoSwapInterval(false);
+
+    getFD    = jni->env->GetMethodID(jni->clazz, "getFD", "([BB)I");
+    writeLog = jni->env->GetMethodID(jni->clazz, "writeLog", "([BI)V");
+
+    setLoading = jni->env->GetMethodID(jni->clazz, "setLoadingIcon", "([B)V");
+    showLoading = jni->env->GetMethodID(jni->clazz, "showLoadingIcon", "()V");
+    hideLoading = jni->env->GetMethodID(jni->clazz, "hideLoadingIcon", "()V");
+
+    setPixSize = jni->env->GetMethodID(jni->clazz, "setPixSize", "(II)V");
+
+#if RETRO_USE_MOD_LOADER
+    fsExists      = jni->env->GetMethodID(jni->clazz, "fsExists", "([B)Z");
+    fsIsDir       = jni->env->GetMethodID(jni->clazz, "fsIsDir", "([B)Z");
+    fsDirIter     = jni->env->GetMethodID(jni->clazz, "fsDirIter", "([B)[Ljava/lang/String;");
+    fsRecurseIter = jni->env->GetMethodID(jni->clazz, "fsRecurseIter", "([B)Ljava/lang/String;");
+#endif
 
     GameActivity_setWindowFlags(app->activity,
                                 AWINDOW_FLAG_KEEP_SCREEN_ON | AWINDOW_FLAG_TURN_SCREEN_ON | AWINDOW_FLAG_LAYOUT_NO_LIMITS | AWINDOW_FLAG_FULLSCREEN
@@ -50,6 +65,7 @@ void android_main(struct android_app *ap)
     RSDK_main(0, NULL, (void *)RSDK::LinkGameLogic);
 
     Paddleboat_destroy(jni->env);
+    SwappyGL_destroy();
 }
 #else
 int32 main(int32 argc, char *argv[]) { return RSDK_main(argc, argv, (void *)RSDK::LinkGameLogic); }

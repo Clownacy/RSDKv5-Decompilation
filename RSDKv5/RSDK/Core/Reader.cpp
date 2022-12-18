@@ -12,18 +12,7 @@ char RSDK::gameLogicName[0x200];
 
 bool32 RSDK::useDataPack = false;
 
-#if RETRO_PLATFORM == RETRO_ANDROID
-FileIO *fOpen(const char *path, const char *mode)
-{
-    char buffer[0x200];
-    int32 a = 0;
-    if (!strncmp(path, SKU::userFileDir, strlen(SKU::userFileDir)))
-        a = strlen(SKU::userFileDir);
-    sprintf_s(buffer, sizeof(buffer), "%s%s", SKU::userFileDir, path + a);
-
-    return fopen(buffer, mode);
-}
-#elif RETRO_PLATFORM == RETRO_WIIU
+#if RETRO_PLATFORM == RETRO_WIIU
 FileIO *fOpen(const char *path, const char *mode)
 {
     // The current version of devkitPPC (r41-2) uses unbuffered file IO by default,
