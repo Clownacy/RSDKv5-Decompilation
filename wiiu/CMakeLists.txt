@@ -7,7 +7,7 @@ option(RSDKv5_USE_LIBVORBIS "Use libvorbis instead of stb_vorbis." OFF)
 
 project(RSDKv5 LANGUAGES C CXX)
 
-add_library(RSDKv5 STATIC
+add_library(RSDKv5 OBJECT
 	"../RSDKv5/main.cpp"
 	"../RSDKv5/RSDK/Core/RetroEngine.cpp"
 	"../RSDKv5/RSDK/Core/Math.cpp"
