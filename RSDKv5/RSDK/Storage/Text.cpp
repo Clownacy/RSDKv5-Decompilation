@@ -1,5 +1,7 @@
 #include "RSDK/Core/RetroEngine.hpp"
 
+using namespace RSDK;
+
 #if RETRO_REV0U
 #include "Legacy/TextLegacy.cpp"
 #endif
@@ -10,8 +12,6 @@
 #define CLOWNMD5_IMPLEMENTATION
 #define CLOWNMD5_STATIC
 #include "clownmd5.h"
-
-using namespace RSDK;
 
 char RSDK::textBuffer[0x400];
 // Buffer is expected to be at least 16 bytes long
@@ -157,7 +157,10 @@ void RSDK::AppendText(String *string, const char *appendString)
 
     int32 len     = 0;
     const char *textBuf = appendString;
-    for (int32 pos = 0; *textBuf; ++len) pos += utf8CharSizes[*textBuf++ & 0xFF];
+    int32 pos;
+    for (pos = 0; *textBuf; ++len) pos += utf8CharSizes[*textBuf++ & 0xFF];
+    (void)pos;
+
     if (!len)
         return;
 

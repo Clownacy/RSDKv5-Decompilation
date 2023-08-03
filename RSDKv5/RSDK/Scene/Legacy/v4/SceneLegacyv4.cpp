@@ -59,7 +59,8 @@ void RSDK::Legacy::v4::ProcessStage(void)
             stageMode         = STAGEMODE_NORMAL;
 
 #if RETRO_USE_MOD_LOADER
-            RefreshModFolders();
+            if (devMenu.modsChanged)
+                RefreshModFolders();
 #endif
             ResetBackgroundSettings();
             LoadStageFiles();
@@ -484,7 +485,7 @@ void RSDK::Legacy::v4::LoadStageFiles()
             CloseFile(&info);
 
 #if RETRO_USE_MOD_LOADER
-            LoadXMLPalettes();
+            LoadGameXML(true);
 #endif
 
 #if RETRO_USE_MOD_LOADER && LEGACY_RETRO_USE_COMPILER
@@ -1013,6 +1014,10 @@ void RSDK::Legacy::v4::SetPlayerScreenPosition(Entity *target)
                 yPosDif = 0;
         }
         cameraLockedY = false;
+    }
+    else if (cameraLockedY) {
+        yPosDif             = 0;
+        currentCamera->ypos = targetY;
     }
     else if (targetY <= currentCamera->ypos) {
         yPosDif = targetY - currentCamera->ypos;
@@ -1561,7 +1566,8 @@ void RSDK::Legacy::v4::SetPlayerHLockedScreenPosition(Entity *target)
         cameraLockedY = false;
     }
     else if (cameraLockedY) {
-        camScroll = 0;
+        camScroll           = 0;
+        currentCamera->ypos = targetY;
     }
     else if (targetY > currentCamera->ypos) {
         camScroll = targetY - currentCamera->ypos;

@@ -6,10 +6,12 @@ namespace RSDK
 
 #define SURFACE_COUNT (0x40)
 
+#ifndef SCREEN_COUNT
 #if RETRO_REV02
 #define SCREEN_COUNT (4)
 #else
 #define SCREEN_COUNT (2)
+#endif
 #endif
 #define CAMERA_COUNT (4)
 
@@ -119,7 +121,7 @@ struct VideoSettings {
     int32 shaderID;
     int32 screenCount;
     uint32 dimTimer;
-    int32 dimLimit;
+    uint32 dimLimit;
     float dimMax;
     float dimPercent;
     float viewportW;
@@ -248,6 +250,8 @@ private:
 #include "SDL2/SDL2RenderDevice.hpp"
 #elif RETRO_RENDERDEVICE_GLFW
 #include "GLFW/GLFWRenderDevice.hpp"
+#elif RETRO_RENDERDEVICE_VK
+#include "Vulkan/VulkanRenderDevice.hpp"
 #elif RETRO_RENDERDEVICE_EGL
 #include "EGL/EGLRenderDevice.hpp"
 #endif
@@ -366,7 +370,7 @@ inline void SetDrawGroupProperties(uint8 drawGroup, bool32 sorted, void (*hookCB
     }
 }
 
-void SwapDrawListEntries(uint8 drawGroup, uint16 slot1, uint16 slot2, int32 count);
+void SwapDrawListEntries(uint8 drawGroup, uint16 slot1, uint16 slot2, uint16 count);
 
 void FillScreen(uint32 color, int32 alphaR, int32 alphaG, int32 alphaB);
 

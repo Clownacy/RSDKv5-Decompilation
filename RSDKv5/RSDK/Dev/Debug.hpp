@@ -21,6 +21,14 @@ enum PrintModes {
 #endif
 };
 
+#if !RETRO_USE_ORIGINAL_CODE
+enum TouchCornerButtons {
+    CORNERBUTTON_START,
+    CORNERBUTTON_LEFTRIGHT,
+    CORNERBUTTON_SLIDER,
+};
+#endif
+
 extern bool32 engineDebugMode;
 extern bool32 useEndLine;
 extern char outputString[0x400];
@@ -125,6 +133,9 @@ void DevMenu_DebugOptionsMenu();
 #endif
 #if RETRO_USE_MOD_LOADER
 void DevMenu_ModsMenu();
+#endif
+#if RETRO_REV0U && RETRO_USE_MOD_LOADER
+void DevMenu_PlayerSelectMenu();
 #endif
 
 void OpenDevMenu();

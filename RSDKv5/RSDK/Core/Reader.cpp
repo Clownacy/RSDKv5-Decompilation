@@ -45,9 +45,10 @@ void RSDK::DetectEngineVersion()
     }
 
     // check if we have any mods with gameconfigs
-    int32 m              = 0;
-    int32 activeModCount = (int32)ActiveMods().size();
-    for (m = 0; m < activeModCount; ++m) {
+    int32 m = 0;
+    for (m = 0; m < modList.size(); ++m) {
+        if (!modList[m].active)
+            break;
         SetActiveMod(m);
 
         FileInfo checkInfo;
@@ -239,13 +240,13 @@ bool32 RSDK::OpenDataFile(FileInfo *info, const char *filename)
         }
 
 #if !RETRO_USE_ORIGINAL_CODE
-        PrintLog(PRINT_NORMAL, "Loaded File %s", filename);
+        PrintLog(PRINT_NORMAL, "Loaded data file %s", filename);
 #endif
         return true;
     }
 
 #if !RETRO_USE_ORIGINAL_CODE
-    PrintLog(PRINT_NORMAL, "Data File not found: %s", filename);
+    PrintLog(PRINT_NORMAL, "Data file not found: %s", filename);
 #else
     PrintLog(PRINT_NORMAL, "File not found: %s", filename);
 #endif
@@ -266,28 +267,24 @@ bool32 RSDK::LoadFile(FileInfo *info, const char *filename, uint8 fileMode)
     for (int32 c = 0; c < strlen(filename); ++c) pathLower[c] = tolower(filename[c]);
 
     bool32 addPath = false;
-    if (modSettings.activeMod != -1) {
-        char buf[0x100];
-        sprintf_s(buf, sizeof(buf), "%s", fullFilePath);
-        sprintf_s(fullFilePath, sizeof(fullFilePath), "%smods/%s/%s", SKU::userFileDir, modList[modSettings.activeMod].id.c_str(), buf);
-        info->externalFile = true;
-        addPath            = false;
-    }
-    else {
-        for (int32 m = 0; m < modList.size(); ++m) {
-            if (modList[m].active) {
-                std::map<std::string, std::string>::const_iterator iter = modList[m].fileMap.find(pathLower);
-                if (iter != modList[m].fileMap.cend()) {
-                    if (std::find(modList[m].excludedFiles.begin(), modList[m].excludedFiles.end(), pathLower) == modList[m].excludedFiles.end()) {
-                        strcpy(fullFilePath, iter->second.c_str());
-                        info->externalFile = true;
-                        break;
-                    }
-                    else {
-                        PrintLog(PRINT_NORMAL, "[MOD] Excluded File: %s", pathLower);
-                    }
+    int32 m        = modSettings.activeMod != -1 ? modSettings.activeMod : 0;
+    for (; m < modList.size(); ++m) {
+        if (modList[m].active) {
+            std::map<std::string, std::string>::const_iterator iter = modList[m].fileMap.find(pathLower);
+            if (iter != modList[m].fileMap.cend()) {
+                if (std::find(modList[m].excludedFiles.begin(), modList[m].excludedFiles.end(), pathLower) == modList[m].excludedFiles.end()) {
+                    strcpy(fullFilePath, iter->second.c_str());
+                    info->externalFile = true;
+                    break;
+                }
+                else {
+                    PrintLog(PRINT_NORMAL, "[MOD] Excluded File: %s", filename);
                 }
             }
+        }
+        if (modSettings.activeMod != -1) {
+            PrintLog(PRINT_NORMAL, "[MOD] Failed to find file %s in active mod %s", filename, modList[m].id.c_str());
+            // TODO return false? check original impl later
         }
     }
 
@@ -307,6 +304,17 @@ bool32 RSDK::LoadFile(FileInfo *info, const char *filename, uint8 fileMode)
 
 #if RETRO_PLATFORM == RETRO_OSX || RETRO_PLATFORM == RETRO_ANDROID
     if (addPath) {
+        char pathBuf[0x100];
+        sprintf_s(pathBuf, sizeof(pathBuf), "%s%s", SKU::userFileDir, fullFilePath);
+        sprintf_s(fullFilePath, sizeof(fullFilePath), "%s", pathBuf);
+    }
+#else
+    (void)addPath;
+#endif
+
+#if !RETRO_USE_ORIGNAL_CODE
+    // somewhat hacky that also pleases the mod gods
+    if (!info->externalFile) {
         char pathBuf[0x100];
         sprintf_s(pathBuf, sizeof(pathBuf), "%s%s", SKU::userFileDir, fullFilePath);
         sprintf_s(fullFilePath, sizeof(fullFilePath), "%s", pathBuf);

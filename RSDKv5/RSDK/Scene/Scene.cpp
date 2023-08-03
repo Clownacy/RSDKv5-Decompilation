@@ -1,10 +1,10 @@
 #include "RSDK/Core/RetroEngine.hpp"
 
+using namespace RSDK;
+
 #if RETRO_REV0U
 #include "Legacy/SceneLegacy.cpp"
 #endif
-
-using namespace RSDK;
 
 uint8 RSDK::tilesetPixels[TILESET_SIZE * 4];
 
@@ -404,8 +404,8 @@ void RSDK::LoadSceneAssets()
 
             layer->layout = NULL;
             if (layer->xsize || layer->ysize) {
-                AllocateStorage((void **)&layer->layout, sizeof(uint16) * (1 << layer->widthShift) * (1 << layer->heightShift), DATASET_STG, true);
-                memset(layer->layout, 0xFF, sizeof(uint16) * (1 << layer->widthShift) * (1 << layer->heightShift));
+                AllocateStorage((void **)&layer->layout, sizeof(uint16) * (1UL << layer->widthShift) * (1UL << layer->heightShift), DATASET_STG, true);
+                memset(layer->layout, 0xFF, sizeof(uint16) * (1UL << layer->widthShift) * (1UL << layer->heightShift));
             }
 
             int32 size = layer->xsize;
@@ -717,6 +717,9 @@ void RSDK::LoadSceneAssets()
 
         CloseFile(&info);
     }
+#if RETRO_USE_MOD_LOADER
+    LoadGameXML(true); // override the stage palette *somewhere* idfk
+#endif
 }
 void RSDK::LoadTileConfig(char *filepath)
 {

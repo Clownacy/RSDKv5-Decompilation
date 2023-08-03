@@ -175,7 +175,7 @@ inline size_t ReadBytes(FileInfo *info, void *data, int32 count)
     if (info->encrypted)
         DecryptBytes(info, data, bytesRead);
 
-    info->readPos += bytesRead;
+    info->readPos += (int32)bytesRead;
     return bytesRead;
 }
 

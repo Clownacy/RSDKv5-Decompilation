@@ -29,10 +29,23 @@ bin/
 [Oo]bj/
 cmake/
 
-# safety
+# Safety
 *.rsdk
 Sonic Mania/Static/*
-mods/
+[Bb]yte[Cc]ode/
+[Dd]ata/
+[Ss]cripts/
+[Mm]ods/
+
+# Visual Studio Debugging
+RSDKv5/log.txt
+RSDKv5U/log.txt
+RSDKv5/*.ini
+RSDKv5U/*.ini
+RSDKv5/*.bin
+RSDKv5U/*.bin
+RSDKv5/*.dll
+RSDKv5U/*.dll
 
 #OSX files
 *.DS_Store

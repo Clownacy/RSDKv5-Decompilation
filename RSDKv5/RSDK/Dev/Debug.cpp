@@ -92,18 +92,20 @@ void RSDK::PrintLog(int32 mode, const char *message, ...)
                 case PRINT_FATAL: as = ANDROID_LOG_FATAL; break;
                 default: break;
             }
-            auto *jni = GetJNISetup();
-            int len = strlen(outputString);
+            auto *jni        = GetJNISetup();
+            int len          = strlen(outputString);
             jbyteArray array = jni->env->NewByteArray(len); // as per research, this gets freed automatically
             jni->env->SetByteArrayRegion(array, 0, len, (jbyte *)outputString);
-            jni->env->CallVoidMethod(jni->thiz, writeLog, array, as);            
+            jni->env->CallVoidMethod(jni->thiz, writeLog, array, as);
 #elif RETRO_PLATFORM == RETRO_SWITCH
             printf("%s", outputString);
 #endif
         }
 
 #if !RETRO_USE_ORIGINAL_CODE && RETRO_PLATFORM != RETRO_ANDROID
-        FileIO *file = fOpen(BASE_PATH "log.txt", "a");
+        char logPath[0x100];
+        sprintf_s(logPath, sizeof(logPath), "%slog.txt", SKU::userFileDir);
+        FileIO *file = fOpen(logPath, "a");
         if (file) {
             fWrite(&outputString, 1, strlen(outputString), file);
             fClose(file);
@@ -191,14 +193,19 @@ uint8 touchTimer = 0;
 
 namespace RSDK
 {
-void DevMenu_HandleTouchControls()
+void DevMenu_HandleTouchControls(int8 cornerButton)
 {
-    if (!controller[CONT_ANY].keyStart.down && !controller[CONT_ANY].keyUp.down && !controller[CONT_ANY].keyDown.down) {
-        for (int32 t = 0; t < touchInfo.count; ++t) {
-            if (touchInfo.down[t] && !(touchTimer % 8)) {
-                int32 tx = (int32)(touchInfo.x[t] * screens->size.x);
-                int32 ty = (int32)(touchInfo.y[t] * screens->size.y);
+    bool32 cornerCheck = cornerButton != CORNERBUTTON_START ? !controller[CONT_ANY].keyLeft.down && !controller[CONT_ANY].keyRight.down
+                                                            : !controller[CONT_ANY].keyStart.down;
 
+    if (cornerCheck && !controller[CONT_ANY].keyUp.down && !controller[CONT_ANY].keyDown.down) {
+        for (int32 t = 0; t < touchInfo.count; ++t) {
+            int32 tx = (int32)(touchInfo.x[t] * screens->size.x);
+            int32 ty = (int32)(touchInfo.y[t] * screens->size.y);
+
+            bool32 touchingSlider = cornerButton == CORNERBUTTON_SLIDER && tx > screens->center.x && ty > screens->center.y;
+
+            if (touchInfo.down[t] && (!(touchTimer % 8) || touchingSlider)) {
                 if (tx < screens->center.x) {
                     if (ty >= screens->center.y) {
                         if (!controller[CONT_ANY].keyDown.down)
@@ -217,10 +224,27 @@ void DevMenu_HandleTouchControls()
                 }
                 else if (tx > screens->center.x) {
                     if (ty > screens->center.y) {
-                        if (!controller[CONT_ANY].keyStart.down)
-                            controller[CONT_ANY].keyStart.press = true;
+                        if (cornerButton == CORNERBUTTON_START) {
+                            if (!controller[CONT_ANY].keyStart.down)
+                                controller[CONT_ANY].keyStart.press = true;
 
-                        controller[CONT_ANY].keyStart.down = true;
+                            controller[CONT_ANY].keyStart.down = true;
+                        }
+                        else {
+                            if (tx < screens->size.x * 0.75) {
+                                if (!controller[CONT_ANY].keyLeft.down)
+                                    controller[CONT_ANY].keyLeft.press = true;
+
+                                controller[CONT_ANY].keyLeft.down = true;
+                            }
+                            else {
+                                if (!controller[CONT_ANY].keyRight.down)
+                                    controller[CONT_ANY].keyRight.press = true;
+
+                                controller[CONT_ANY].keyRight.down = true;
+                                break;
+                            }
+                        }
                         break;
                     }
                     else {
@@ -320,6 +344,10 @@ void RSDK::DevMenu_MainMenu()
 #if RETRO_USE_MOD_LOADER
     if (devMenu.modsChanged)
         DrawDevString("Game will restart on resume!", currentScreen->center.x, y, ALIGN_CENTER, 0xF08080);
+#ifdef RETRO_DEV_EXTRA
+    else
+        DrawDevString(RETRO_DEV_EXTRA, currentScreen->center.x, y, ALIGN_CENTER, 0x808090);
+#endif
 #endif
     y += 8;
     DrawDevString(gameVerInfo.gameTitle, currentScreen->center.x, y, ALIGN_CENTER, 0x808090);
@@ -378,7 +406,7 @@ void RSDK::DevMenu_MainMenu()
     DrawDevString("TMP", currentScreen->center.x - 64, y, 0, 0xF0F080);
 
 #if !RETRO_USE_ORIGINAL_CODE
-    DevMenu_HandleTouchControls();
+    DevMenu_HandleTouchControls(CORNERBUTTON_START);
 #endif
 
     if (controller[CONT_ANY].keyUp.press) {
@@ -474,9 +502,11 @@ void RSDK::DevMenu_MainMenu()
 #else
             case 4:
                 LoadMods(true); // reload our mod list real quick
-                devMenu.state     = DevMenu_ModsMenu;
-                devMenu.selection = 0;
-                devMenu.timer     = 1;
+                if (modList.size() != 0) {
+                    devMenu.state     = DevMenu_ModsMenu;
+                    devMenu.selection = 0;
+                    devMenu.timer     = 1;
+                }
                 break;
 
             case 5: RenderDevice::isRunning = false; break;
@@ -509,7 +539,7 @@ void RSDK::DevMenu_CategorySelectMenu()
     }
 
 #if !RETRO_USE_ORIGINAL_CODE
-    DevMenu_HandleTouchControls();
+    DevMenu_HandleTouchControls(CORNERBUTTON_START);
 #endif
 
     if (controller[CONT_ANY].keyUp.press) {
@@ -643,12 +673,12 @@ void RSDK::DevMenu_SceneSelectMenu()
         if (devMenu.scrollPos + i < list->sceneCount) {
             DrawDevString(sceneInfo.listData[start + (devMenu.scrollPos + i)].name, currentScreen->center.x + 96, y, ALIGN_RIGHT, selectionColors[i]);
             y += 8;
-            devMenu.scrollPos = devMenu.scrollPos;
+            devMenu.scrollPos = devMenu.scrollPos; //? look into
         }
     }
 
 #if !RETRO_USE_ORIGINAL_CODE
-    DevMenu_HandleTouchControls();
+    DevMenu_HandleTouchControls(CORNERBUTTON_START);
 #endif
 
     if (controller[CONT_ANY].keyUp.press) {
@@ -738,13 +768,19 @@ void RSDK::DevMenu_SceneSelectMenu()
                 case 5: sceneInfo.state = ENGINESTATE_LOAD; break;
                 case 4:
                 case 3:
+#if !RETRO_USE_MOD_LOADER
                     RSDK::Legacy::gameMode  = RSDK::Legacy::ENGINE_MAINGAME;
                     RSDK::Legacy::stageMode = RSDK::Legacy::STAGEMODE_LOAD;
+#else
+                    devMenu.state     = DevMenu_PlayerSelectMenu;
+                    devMenu.scrollPos = 0;
+                    devMenu.selection = 0;
+#endif //! RETRO_USE_ORIGINAL_CODE
                     break;
             }
 #else
             sceneInfo.state = ENGINESTATE_LOAD;
-#endif
+#endif //! RETRO_REV0U
 
                 // Bug Details(?):
                 // rev01 had this here, rev02 does not.
@@ -798,7 +834,7 @@ void RSDK::DevMenu_OptionsMenu()
     DrawDevString("Back", currentScreen->center.x, dy + 12, ALIGN_CENTER, selectionColors[selectionCount - 1]);
 
 #if !RETRO_USE_ORIGINAL_CODE
-    DevMenu_HandleTouchControls();
+    DevMenu_HandleTouchControls(CORNERBUTTON_START);
 #endif
 
     if (controller[CONT_ANY].keyUp.press) {
@@ -947,7 +983,7 @@ void RSDK::DevMenu_VideoOptionsMenu()
     DrawDevString("Cancel", currentScreen->center.x, dy + 8, ALIGN_CENTER, selectionColors[5]);
 
 #if !RETRO_USE_ORIGINAL_CODE
-    DevMenu_HandleTouchControls();
+    DevMenu_HandleTouchControls(devMenu.selection < 4);
 #endif
 
     if (controller[CONT_ANY].keyUp.press) {
@@ -1133,7 +1169,17 @@ void RSDK::DevMenu_AudioOptionsMenu()
     DrawDevString("Back", currentScreen->center.x, dy + 16, ALIGN_CENTER, selectionColors[3]);
 
 #if !RETRO_USE_ORIGINAL_CODE
-    DevMenu_HandleTouchControls();
+    int8 cornerButton = CORNERBUTTON_START;
+    switch (devMenu.selection) {
+        case 0: cornerButton = CORNERBUTTON_LEFTRIGHT; break;
+
+        case 1:
+        case 2: cornerButton = CORNERBUTTON_SLIDER; break;
+
+        case 3: cornerButton = CORNERBUTTON_START; break;
+    }
+
+    DevMenu_HandleTouchControls(cornerButton);
 #endif
 
     if (controller[CONT_ANY].keyUp.press) {
@@ -1265,7 +1311,7 @@ void RSDK::DevMenu_InputOptionsMenu()
     DrawDevString("Back", currentScreen->center.x, dy + 18, ALIGN_CENTER, selectionColors[4]);
 
 #if !RETRO_USE_ORIGINAL_CODE
-    DevMenu_HandleTouchControls();
+    DevMenu_HandleTouchControls(CORNERBUTTON_START);
 #endif
 
     if (controller[CONT_ANY].keyUp.press) {
@@ -1331,7 +1377,7 @@ void RSDK::DevMenu_InputOptionsMenu()
 void RSDK::DevMenu_KeyMappingsMenu()
 {
 #if !RETRO_USE_ORIGINAL_CODE
-    DevMenu_HandleTouchControls();
+    DevMenu_HandleTouchControls(CORNERBUTTON_START);
 #endif
 
     int32 dy = currentScreen->center.y;
@@ -1470,7 +1516,7 @@ void RSDK::DevMenu_DebugOptionsMenu()
     DrawRectangle(currentScreen->center.x - 128, dy - 4, 0x100, 0x48, 0x80, 0xFF, INK_NONE, true);
 
 #if !RETRO_USE_ORIGINAL_CODE
-    DevMenu_HandleTouchControls();
+    DevMenu_HandleTouchControls(devMenu.selection < viewableVarCount);
 #endif
 
     bool32 confirm = controller[CONT_ANY].keyA.press;
@@ -1587,7 +1633,7 @@ void RSDK::DevMenu_DebugOptionsMenu()
                     }
                 }
 
-                DrawDevString(valueStr, currentScreen->center.x + 96, dy, ALIGN_CENTER, selectionColors[i]);
+                DrawDevString(valueStr, currentScreen->center.x + 96, dy, ALIGN_CENTER, 0xF0F080);
             }
             dy += 8;
         }
@@ -1763,7 +1809,7 @@ void RSDK::DevMenu_ModsMenu()
     }
 
 #if !RETRO_USE_ORIGINAL_CODE
-    DevMenu_HandleTouchControls();
+    DevMenu_HandleTouchControls(CORNERBUTTON_START);
 #endif
 
     int32 preselection = devMenu.selection;
@@ -1864,6 +1910,114 @@ void RSDK::DevMenu_ModsMenu()
             engine.version = devMenu.startingVersion;
         }
 #endif
+    }
+}
+#endif
+
+#if RETRO_REV0U && RETRO_USE_MOD_LOADER
+void RSDK::DevMenu_PlayerSelectMenu()
+{
+    uint32 selectionColors[] = {
+        0x808090, 0x808090, 0x808090, 0x808090, 0x808090, 0x808090, 0x808090, 0x808090,
+    };
+    selectionColors[devMenu.selection - devMenu.scrollPos] = 0xF0F0F0;
+
+    int32 dy = currentScreen->center.y;
+    DrawRectangle(currentScreen->center.x - 128, dy - 84, 0x100, 0x30, 0x80, 0xFF, INK_NONE, true);
+
+    dy -= 68;
+    DrawDevString("SELECT PLAYER", currentScreen->center.x, dy, ALIGN_CENTER, 0xF0F0F0);
+    DrawRectangle(currentScreen->center.x - 128, dy + 36, 0x100, 0x48, 0x80, 0xFF, INK_NONE, true);
+
+    int32 y = dy + 40;
+    for (int32 i = 0; i < 8; ++i) {
+        if (devMenu.scrollPos + i < modSettings.playerCount) {
+            DrawDevString(modSettings.playerNames[devMenu.scrollPos + i], currentScreen->center.x - 64, y, ALIGN_LEFT, selectionColors[i]);
+            y += 8;
+        }
+    }
+
+    DevMenu_HandleTouchControls(CORNERBUTTON_START);
+
+    if (controller[CONT_ANY].keyUp.press) {
+        if (--devMenu.selection < 0)
+            devMenu.selection = modSettings.playerCount - 1;
+
+        if (devMenu.selection >= devMenu.scrollPos) {
+            if (devMenu.selection > devMenu.scrollPos + 7)
+                devMenu.scrollPos = devMenu.selection - 7;
+        }
+        else {
+            devMenu.scrollPos = devMenu.selection;
+        }
+
+        devMenu.timer = 1;
+    }
+    else if (controller[CONT_ANY].keyUp.down) {
+        if (!devMenu.timer && --devMenu.selection < 0)
+            devMenu.selection = modSettings.playerCount - 1;
+
+        devMenu.timer = (devMenu.timer + 1) & 7;
+
+        if (devMenu.selection >= devMenu.scrollPos) {
+            if (devMenu.selection > devMenu.scrollPos + 7)
+                devMenu.scrollPos = devMenu.selection - 7;
+        }
+        else {
+            devMenu.scrollPos = devMenu.selection;
+        }
+    }
+
+    if (controller[CONT_ANY].keyDown.press) {
+        if (++devMenu.selection >= modSettings.playerCount)
+            devMenu.selection = 0;
+
+        if (devMenu.selection >= devMenu.scrollPos) {
+            if (devMenu.selection > devMenu.scrollPos + 7)
+                devMenu.scrollPos = devMenu.selection - 7;
+        }
+        else {
+            devMenu.scrollPos = devMenu.selection;
+        }
+
+        devMenu.timer = 1;
+    }
+    else if (controller[CONT_ANY].keyDown.down) {
+        if (!devMenu.timer && ++devMenu.selection >= modSettings.playerCount)
+            devMenu.selection = 0;
+
+        devMenu.timer = (devMenu.timer + 1) & 7;
+
+        if (devMenu.selection >= devMenu.scrollPos) {
+            if (devMenu.selection > devMenu.scrollPos + 7)
+                devMenu.scrollPos = devMenu.selection - 7;
+        }
+        else {
+            devMenu.scrollPos = devMenu.selection;
+        }
+    }
+
+    bool32 confirm = controller[CONT_ANY].keyA.press;
+#if RETRO_REV02
+    bool32 swap = SKU::userCore->GetConfirmButtonFlip();
+#else
+    bool32 swap = SKU::GetConfirmButtonFlip();
+#endif
+    if (swap)
+        confirm = controller[CONT_ANY].keyB.press;
+
+    if (controller[CONT_ANY].keyStart.press || confirm) {
+        switch (engine.version) {
+            case 3: RSDK::Legacy::v3::playerListPos = devMenu.selection; break;
+            case 4: RSDK::Legacy::v4::playerListPos = devMenu.selection; break;
+        }
+        RSDK::Legacy::gameMode  = RSDK::Legacy::ENGINE_MAINGAME;
+        RSDK::Legacy::stageMode = RSDK::Legacy::STAGEMODE_LOAD;
+    }
+    else if (swap ? controller[CONT_ANY].keyA.press : controller[CONT_ANY].keyB.press) {
+        devMenu.state     = DevMenu_SceneSelectMenu;
+        devMenu.scrollPos = 0;
+        devMenu.selection = 0;
     }
 }
 #endif

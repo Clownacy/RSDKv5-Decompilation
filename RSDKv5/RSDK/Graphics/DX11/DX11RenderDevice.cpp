@@ -938,6 +938,8 @@ void RenderDevice::LoadShader(const char *fileName, bool32 linear)
 
                 return;
             }
+#pragma comment( lib, "dxguid.lib")
+            shader->vertexShaderObject->SetPrivateData(WKPDID_D3DDebugObjectName, strlen(fileName), fileName);
         }
 
         bytecode     = shaderBlob->GetBufferPointer();
@@ -1139,6 +1141,10 @@ bool RenderDevice::InitShaders()
     }
 
     int32 maxShaders = 0;
+#if RETRO_USE_MOD_LOADER
+    shaderCount = 0;
+#endif
+
     if (videoSettings.shaderSupport) {
         LoadShader("None", false);
         LoadShader("Clean", true);
@@ -1493,7 +1499,8 @@ void RenderDevice::ProcessEvent(MSG Msg)
                 case VK_F1:
                     if (engine.devMenu) {
                         sceneInfo.listPos--;
-                        if (sceneInfo.listPos < sceneInfo.listCategory[sceneInfo.activeCategory].sceneOffsetStart) {
+                        if (sceneInfo.listPos < sceneInfo.listCategory[sceneInfo.activeCategory].sceneOffsetStart
+                            || sceneInfo.listPos >= sceneInfo.listCategory[sceneInfo.activeCategory].sceneOffsetEnd) {
                             sceneInfo.activeCategory--;
                             if (sceneInfo.activeCategory >= sceneInfo.categoryCount) {
                                 sceneInfo.activeCategory = sceneInfo.categoryCount - 1;
@@ -1517,7 +1524,7 @@ void RenderDevice::ProcessEvent(MSG Msg)
                 case VK_F2:
                     if (engine.devMenu) {
                         sceneInfo.listPos++;
-                        if (sceneInfo.listPos >= sceneInfo.listCategory[sceneInfo.activeCategory].sceneOffsetEnd) {
+                        if (sceneInfo.listPos >= sceneInfo.listCategory[sceneInfo.activeCategory].sceneOffsetEnd || sceneInfo.listPos == 0) {
                             sceneInfo.activeCategory++;
                             if (sceneInfo.activeCategory >= sceneInfo.categoryCount) {
                                 sceneInfo.activeCategory = 0;
@@ -1560,7 +1567,7 @@ void RenderDevice::ProcessEvent(MSG Msg)
                         // Quick-Reload
 #if RETRO_USE_MOD_LOADER
                         if (GetAsyncKeyState(VK_CONTROL))
-                            RefreshModFolders();   
+                            RefreshModFolders();
 #endif
 
 #if RETRO_REV0U
@@ -1980,7 +1987,7 @@ void RenderDevice::SetupVideoTexture_YUV422(int32 width, int32 height, uint8 *yP
             }
 
             pixels = (DWORD *)mappedResource.pData;
-            pitch  = 0; // (rect.Pitch >> 2) - (width >> 1);
+            pitch  = (mappedResource.RowPitch >> 2) - (width >> 1);
             for (int32 y = 0; y < height; ++y) {
                 for (int32 x = 0; x < (width >> 1); ++x) {
                     *pixels++ |= (vPlane[x] << 0) | (uPlane[x] << 8) | 0xFF000000;

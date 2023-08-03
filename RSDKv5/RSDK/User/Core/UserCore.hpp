@@ -11,6 +11,9 @@ struct CustomSettings {
     bool32 xyButtonFlip;
     bool32 enableControllerDebugging;
     bool32 disableFocusPause;
+#if RETRO_REV0U
+    bool32 forceScripts;
+#endif
 #if RETRO_USERCORE_DUMMY
     bool32 dlcEnabled;
 #endif
@@ -76,6 +79,8 @@ extern UnknownInfo unknownInfo;
 // This is the base struct, it serves as the base for any API-specific stats
 // This struct should never be removed
 struct UserCore {
+    virtual ~UserCore() = default;
+
     virtual void Shutdown() {}
     virtual bool32 CheckAPIInitialized() { return true; }
     virtual bool32 CheckFocusLost() { return false; }
@@ -110,7 +115,7 @@ struct UserCore {
     virtual void InitInputDevices() {}
     virtual void Unknown() {}
 #else
-    virtual bool32 ShowExtensionOverlay(uint8 overlay) { return false; }
+    virtual bool32 ShowExtensionOverlay(int32 overlay) { return false; }
 #endif
 
     bool32 values[8] = { false, false, false, false, false, false, false, false };

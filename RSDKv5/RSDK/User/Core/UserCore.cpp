@@ -129,6 +129,7 @@ void RSDK::SKU::InitUserCore()
     memset(achievementsRAM, 0, 0x100 * sizeof(int32));
     bool32 loaded = false;
     loaded        = LoadUserFile("Achievements.bin", achievementsRAM, 0x100 * sizeof(int32));
+    (void)loaded;
     for (int32 i = 0; i < (int32)achievementList.size(); ++i) {
         achievementList[i].achieved = achievementsRAM[i];
     }
@@ -313,9 +314,9 @@ void RSDK::LoadSettingsINI()
             engine.devMenu = iniparser_getboolean(ini, "Game:devMenu", false);
 
 #if !RETRO_USE_ORIGINAL_CODE
-        customSettings.region                    = iniparser_getint(ini, "Game:region", -1);
-        // customSettings.confirmButtonFlip         = iniparser_getboolean(ini, "Game:confirmButtonFlip", false);
-        // customSettings.xyButtonFlip              = iniparser_getboolean(ini, "Game:xyButtonFlip", false);
+        customSettings.region = iniparser_getint(ini, "Game:region", -1);
+        // customSettings.confirmButtonFlip        = iniparser_getboolean(ini, "Game:confirmButtonFlip", false);
+        // customSettings.xyButtonFlip             = iniparser_getboolean(ini, "Game:xyButtonFlip", false);
         customSettings.confirmButtonFlip         = iniparser_getboolean(ini, "Game:faceButtonFlip", false);
         customSettings.xyButtonFlip              = customSettings.confirmButtonFlip;
         customSettings.enableControllerDebugging = iniparser_getboolean(ini, "Game:enableControllerDebugging", false);
@@ -325,7 +326,8 @@ void RSDK::LoadSettingsINI()
 #endif
 
 #if RETRO_REV0U
-        engine.gameReleaseID = iniparser_getint(ini, "Game:gameType", 1);
+        customSettings.forceScripts = iniparser_getboolean(ini, "Game:txtScripts", false);
+        engine.gameReleaseID        = iniparser_getint(ini, "Game:gameType", 1);
 #endif
 
         sprintf_s(gameLogicName, sizeof(gameLogicName), "%s", iniparser_getstring(ini, "Game:gameLogic", "Game"));
@@ -366,8 +368,8 @@ void RSDK::LoadSettingsINI()
 #endif
 
         engine.streamsEnabled = iniparser_getboolean(ini, "Audio:streamsEnabled", true);
-        engine.streamVolume   = iniparser_getdouble(ini, "Audio:streamVolume", 0.8);
-        engine.soundFXVolume  = iniparser_getdouble(ini, "Audio:sfxVolume", 1.0);
+        engine.streamVolume   = (float)iniparser_getdouble(ini, "Audio:streamVolume", 0.8);
+        engine.soundFXVolume  = (float)iniparser_getdouble(ini, "Audio:sfxVolume", 1.0);
 
         for (int32 i = CONT_P1; i <= PLAYER_COUNT; ++i) {
             char buffer[0x30];
@@ -422,10 +424,16 @@ void RSDK::LoadSettingsINI()
         }
 
 #if !RETRO_USE_ORIGINAL_CODE
-        // using standard allocation here due to mod loader trickery
-        gamePadMappings = new GamePadMappings[gamePadCount];
+        if (gamePadCount) {
+#endif
+#if RETRO_USE_MOD_LOADER
+            // using standard allocation here due to mod loader trickery
+            gamePadMappings = new GamePadMappings[gamePadCount];
 #else
         AllocateStorage((void **)&gamePadMappings, sizeof(GamePadMappings) * gamePadCount, DATASET_STG, true);
+#endif
+#if !RETRO_USE_ORIGINAL_CODE
+        }
 #endif
 
         for (int32 i = 0; i < gamePadCount; ++i) {
@@ -512,7 +520,8 @@ void RSDK::LoadSettingsINI()
 #endif
 
 #if RETRO_REV0U
-        engine.gameReleaseID = 0;
+        customSettings.forceScripts = false;
+        engine.gameReleaseID        = 0;
 #endif
 
         sprintf_s(gameLogicName, sizeof(gameLogicName), "Game");
@@ -589,11 +598,11 @@ void RSDK::SaveSettingsINI(bool32 writeToFile)
         // ================
         WriteText(file, "[Game]\n");
         if (ini) {
-            if (strcmp(iniparser_getstring(ini, "Game:dataFile", ";unknown;"), ";unknown;") != 0) {
+            if (strcmp(iniparser_getstring(ini, "Game:dataFile", ";unknown;"), ";unknown;") != 0 || (!RETRO_USE_ORIGINAL_CODE && RETRO_REV0U)) {
                 WriteText(file, "dataFile=%s\n", iniparser_getstring(ini, "Game:dataFile", "Data.rsdk"));
             }
 
-            if (strcmp(iniparser_getstring(ini, "Game:devMenu", ";unknown;"), ";unknown;") != 0)
+            if (strcmp(iniparser_getstring(ini, "Game:devMenu", ";unknown;"), ";unknown;") != 0 || (!RETRO_USE_ORIGINAL_CODE && RETRO_REV0U))
                 WriteText(file, "devMenu=%s\n", (engine.devMenu ? "y" : "n"));
 
 #if !RETRO_USE_ORIGINAL_CODE
@@ -604,7 +613,8 @@ void RSDK::SaveSettingsINI(bool32 writeToFile)
             // WriteText(file, "confirmButtonFlip=%s\n", (customSettings.confirmButtonFlip ? "y" : "n"));
             // WriteText(file, "xyButtonFlip=%s\n", (customSettings.xyButtonFlip ? "y" : "n"));
 
-            WriteText(file, "enableControllerDebugging=%s\n", (customSettings.enableControllerDebugging ? "y" : "n"));
+            if (engine.devMenu)
+                WriteText(file, "enableControllerDebugging=%s\n", (customSettings.enableControllerDebugging ? "y" : "n"));
 
             WriteText(file, "; Determines if the engine should pause when window focus is lost or not\n");
             WriteText(file, "disableFocusPause=%s\n", (customSettings.disableFocusPause ? "y" : "n"));
@@ -616,6 +626,9 @@ void RSDK::SaveSettingsINI(bool32 writeToFile)
             WriteText(file, "region=%d\n", customSettings.region);
 
 #if RETRO_REV0U
+            WriteText(file, "; Determines if legacy modes are forced to load from the scripts folder instead of bytecode\n");
+            WriteText(file, "txtScripts=%s\n", (customSettings.forceScripts ? "y" : "n"));
+
             WriteText(file, "; Determines game type in scripts (0 = Standalone/Original releases, 1 = Origins release)\n");
             WriteText(file, "gameType=%d\n", engine.gameReleaseID);
 #endif
@@ -680,7 +693,7 @@ void RSDK::SaveSettingsINI(bool32 writeToFile)
         // ==========================
 
         // ================
-        // KE^YBOARD MAP
+        // KEYBOARD MAP
         // ================
         for (int32 i = 1; i <= PLAYER_COUNT; ++i) {
             WriteText(file, "\n[Keyboard Map %d]\n", i);
@@ -740,7 +753,7 @@ void RSDK::SaveSettingsINI(bool32 writeToFile)
         fClose(file);
     }
 
-#if !RETRO_USE_ORIGINAL_CODE
+#if RETRO_USE_MOD_LOADER
     if (gamePadCount && gamePadMappings)
         delete[] gamePadMappings;
     gamePadMappings = NULL;
