@@ -886,8 +886,8 @@ void RSDK::Draw3DScene(uint16 sceneID)
         Scene3DFace *a = scn->faceBuffer;
 
 #if RETRO_PLATFORM == RETRO_WIIU
-        // Use the faster std::sort instead
-        std::sort(a, a + scn->faceCount, [](const Scene3DFace &a, const Scene3DFace &b) { return a.depth > b.depth; });
+        // Use the faster std::stable_sort instead
+        std::stable_sort(a, a + scn->faceCount, [](const Scene3DFace &a, const Scene3DFace &b) { return a.depth > b.depth; });
 #else
         int i, j;
         Scene3DFace temp;
