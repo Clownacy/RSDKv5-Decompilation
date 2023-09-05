@@ -98,6 +98,8 @@ static const ov_callbacks vorbisCallbacks = {
 #include "SDL2/SDL2AudioDevice.cpp"
 #elif RETRO_AUDIODEVICE_PORT
 #include "PortAudio/PortAudioDevice.cpp"
+#elif RETRO_AUDIODEVICE_MINI
+#include "MiniAudio/MiniAudioDevice.cpp"
 #elif RETRO_AUDIODEVICE_OBOE
 #include "Oboe/OboeAudioDevice.cpp"
 #endif
