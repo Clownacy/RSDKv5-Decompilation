@@ -52,6 +52,7 @@ target_compile_definitions(RSDKv5 PUBLIC # Public because the game itself relies
 	RETRO_STANDALONE=0
 	RSDK_USE_SDL2
 	RETRO_REVISION=2
+	RETRO_DISABLE_LOG	# Disable logging because even just destroying an enemy will cause a debug message to be logged which causes the Wii U build to stutter.
 )
 
 if(RSDKv5_STATIC)
