@@ -44,7 +44,8 @@ bool RenderDevice::Init()
     videoSettings.windowHeight = 1080;
     flags |= SDL_WINDOW_FULLSCREEN;
 #elif RETRO_PLATFORM == RETRO_WIIU
-    flags |= SDL_WINDOW_FULLSCREEN_DESKTOP;
+    videoSettings.windowWidth  = 1708;
+    videoSettings.windowHeight = 960;
 #endif
 
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
