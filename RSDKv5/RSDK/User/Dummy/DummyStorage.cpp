@@ -38,10 +38,10 @@ bool32 DummyUserStorage::GetUsername(String *name)
     std::array<int16_t, nn::act::MiiNameSize> miiName;
 
     nn::act::Initialize();
-    const nn::Result result = nn::act::GetMiiName(miiName);
+    const nn::Result result = nn::act::GetMiiName(miiName.data());
 
     if (result.IsSuccess()) {
-        std:::array<char, nn::act::MiiNameSize + 1> userName;
+        std::array<char, nn::act::MiiNameSize + 1> userName;
         for (std::size_t i = 0; i < miiName.size(); ++i) {
             userName[i] = static_cast<char>(miiName[i]);
         }
