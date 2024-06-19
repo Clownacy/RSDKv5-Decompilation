@@ -1,4 +1,10 @@
 #if RETRO_REV02
+
+#if RETRO_PLATFORM == RETRO_WIIU
+#include <array>
+#include <nn/act.h> 
+#endif
+
 int32 DummyUserStorage::TryAuth()
 {
     if (authStatus == STATUS_CONTINUE) {
@@ -28,6 +34,27 @@ int32 DummyUserStorage::TryInitStorage()
 }
 bool32 DummyUserStorage::GetUsername(String *name)
 {
+#if RETRO_PLATFORM == RETRO_WIIU
+    std::array<int16_t, nn::act::MiiNameSize> miiName;
+
+    nn::act::Initialize();
+    const nn::Result result = nn::act::GetMiiName(miiName.data());
+
+    if (result.IsSuccess()) {
+        std::array<char, nn::act::MiiNameSize + 1> userName;
+        for (std::size_t i = 0; i < miiName.size(); ++i) {
+            userName[i] = static_cast<char>(miiName[i]);
+        }
+        userName.back() = '\0';
+
+        InitString(name, userName.data(), 0);
+    }
+    else {
+        InitString(name, "IntegerGeorge802", 0);
+    }
+
+    nn::act::Finalize();
+#else
 #if !RETRO_USE_ORIGINAL_CODE
     if (strlen(customSettings.username) > 0)
         InitString(name, customSettings.username, 0);
@@ -35,6 +62,7 @@ bool32 DummyUserStorage::GetUsername(String *name)
         InitString(name, "IntegerGeorge802", 0);
 #else
     InitString(name, "IntegerGeorge802", 0);
+#endif
 #endif
     return true;
 }
