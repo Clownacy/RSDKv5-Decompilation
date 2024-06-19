@@ -63,6 +63,7 @@ bool32 DummyUserStorage::GetUsername(String *name)
 #else
     InitString(name, "IntegerGeorge802", 0);
 #endif
+#endif
     return true;
 }
 void DummyUserStorage::ClearPrerollErrors()
